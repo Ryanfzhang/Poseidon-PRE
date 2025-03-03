@@ -16,7 +16,7 @@ class NetCDFDataset(data.Dataset):
     """Dataset class for the era5 upper and surface variables."""
 
     def __init__(self,
-                 dataset_path = '/home/mafzhang/code/Project/ocean-fundation-model-PRE/dataset/cmoms/',
+                 dataset_path = '/home/mafzhang/code/Project/ocean-fundation-model-pre/dataset/cmoms/',
                  data_transform = None,
                  seed = 1234,
                  training = True,
@@ -24,7 +24,7 @@ class NetCDFDataset(data.Dataset):
                  startDate = '19880501',
                  endDate = '20191231',
                  freq = 'D',
-                 lead_time = 1,
+                 lead_time = 7,
                  ):
         """Initialize."""
         self.dataset_path = dataset_path
@@ -33,9 +33,9 @@ class NetCDFDataset(data.Dataset):
         self.validation = validation
         self.data_transform = data_transform
         self.lead_time = lead_time
-        # self.mean = np.load("/home/mafzhang/data/CMOMS/mean.npy")
-        # self.std = np.load("/home/mafzhang/data/CMOMS/std.npy")
-        # self.mask = np.load("/home/mafzhang/data/CMOMS/mask.npy").astype(np.float32)
+        self.mean = np.load(os.path.join(self.dataset_path, "mean.npy"))
+        self.std = np.load(os.path.join(self.dataset_path, "std.npy"))
+        self.mask = np.load(os.path.join(self.dataset_path, "mask.npy"))
 
         self.keys = list(pd.date_range(start=startDate, end=endDate, freq=freq))
         self.length = len(self.keys) - lead_time
@@ -84,18 +84,20 @@ class NetCDFDataset(data.Dataset):
         """Return input frames, target frames, and its corresponding time steps."""
         iii = self.keys[index]
         input, input_mark, target, target_mark, periods = self.LoadData(iii)
-        normalized_input, normalized_output = self.normalize(input, target)
+        input = self.normalize(input)
+        target = self.normalize(target)
         input = np.nan_to_num(input, nan=0.)
         target = np.nan_to_num(target, nan=0.)
-        normalized_input = np.nan_to_num(normalized_input, nan=0.)
-        normalized_output = np.nan_to_num(normalized_output, nan=0.)
 
-        return input, normalized_input, input_mark, target, normalized_output, target_mark, periods
+        return input, input_mark, target, target_mark, periods
     
-    def normalize(self, input, target):
-        ninput = (input- self.mean[np.newaxis, :, np.newaxis, np.newaxis])/(self.std[np.newaxis, :, np.newaxis, np.newaxis]+1e-5)
-        noutput = (target - self.mean[np.newaxis, :, np.newaxis, np.newaxis])/(self.std[np.newaxis, :, np.newaxis, np.newaxis]+1e-5)
-        return ninput, noutput
+    def normalize(self, input):
+        output = (input- self.mean[np.newaxis, :, np.newaxis, np.newaxis])/(self.std[np.newaxis, :, np.newaxis, np.newaxis])
+        return output
+
+    def denormalize(self, input):
+        output = input * self.mean[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis] + self.mean[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis]
+        return output
 
     def __len__(self):
         return self.length
@@ -106,3 +108,4 @@ class NetCDFDataset(data.Dataset):
 
 if __name__=="__main__":
     dataset = NetCDFDataset()
+    print(dataset.__getitem__(dataset.__len__()-1))

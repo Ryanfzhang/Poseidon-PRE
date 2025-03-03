@@ -51,13 +51,13 @@ def main(keys):
                 std.append(s)
             except Exception as e:
                 print(f"Error processing key {futures[future]}: {e}")
-    return np.array(mean), np.array(std)
+    return mean, std
 
 # 示例调用
 keys = list(pd.date_range(start="19880501", end="20191231", freq='D'))
 mean, std = main(keys)
 mean = np.stack(mean, 0)
-mean = np.mean(mean)
+mean = np.mean(mean, 0)
 np.save("/home/mafzhang/code/Project/ocean-fundation-model-pre/dataset/cmoms/mean.npy", mean)
 
 std = np.stack(std, 0)

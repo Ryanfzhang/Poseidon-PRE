@@ -3,7 +3,108 @@ from torch import nn
 import numpy as np
 from timm.models.layers import trunc_normal_, DropPath
 
-from .utils import get_pad3d, get_pad2d, crop2d, crop3d, window_partition, window_reverse, get_shift_window_mask
+import sys
+import os
+sys.path.insert(0, os.getcwd())
+from backbones.utils import get_pad3d, get_pad2d, crop2d, crop3d, window_partition, window_reverse, get_shift_window_mask, get_earth_position_index
+
+class Mlp(nn.Module):
+    def __init__(self, in_features, hidden_features=None, out_features=None, act_layer=nn.GELU, drop=0., **kwargs):
+        super().__init__()
+        out_features = out_features or in_features
+        hidden_features = hidden_features or in_features
+        self.fc1 = nn.Linear(in_features, hidden_features)
+        self.act = act_layer()
+        self.fc2 = nn.Linear(hidden_features, out_features)
+        self.drop = nn.Dropout(drop)
+
+    def forward(self, x: torch.Tensor):
+        x = self.fc1(x)
+        x = self.act(x)
+        x = self.drop(x)
+        x = self.fc2(x)
+        x = self.drop(x)
+        return x
+
+class LinVert(nn.Module):
+    '''
+    a modification of Mlp that takes the full column
+    '''
+    def __init__(self, in_features,  
+                 drop=0., **kwargs):
+        super().__init__()
+        self.fc1 = nn.Linear(8*in_features, 8*in_features)
+
+    def forward(self, x: torch.Tensor):
+        shortcut = x
+        x2 = shortcut.reshape((shortcut.shape[0], 8, -1, shortcut.shape[-1])).movedim(1, -2).flatten(-2, -1) # B, lat*lon, 8*C
+        x2 = self.fc1(x2)
+        x2 = x2.reshape((x2.shape[0], -1, 8, shortcut.shape[-1])).movedim(-2, 1).flatten(1, 2) # B, 8*lat*lon, C
+
+        return shortcut + x2
+    
+# conditional basic layer
+
+
+class BasicLayer(nn.Module):
+    """A basic 3D Transformer layer for one stage
+
+    Args:
+        dim (int): Number of input channels.
+        input_resolution (tuple[int]): Input resolution.
+        depth (int): Number of blocks.
+        num_heads (int): Number of attention heads.
+        window_size (tuple[int]): Local window size.
+        mlp_ratio (float): Ratio of mlp hidden dim to embedding dim.
+        qkv_bias (bool, optional): If True, add a learnable bias to query, key, value. Default: True
+        qk_scale (float | None, optional): Override default qk scale of head_dim ** -0.5 if set.
+        drop (float, optional): Dropout rate. Default: 0.0
+        attn_drop (float, optional): Attention dropout rate. Default: 0.0
+        drop_path (float | tuple[float], optional): Stochastic depth rate. Default: 0.0
+        norm_layer (nn.Module, optional): Normalization layer. Default: nn.LayerNorm
+    """
+
+    def __init__(self, dim, input_resolution, depth, num_heads, window_size, mlp_ratio=4., qkv_bias=True, qk_scale=None,
+                 drop=0., attn_drop=0., drop_path=0., act_layer=nn.GELU, norm_layer=nn.LayerNorm,
+                 mlp_layer=Mlp,
+                 **kwargs):
+        super().__init__()
+        self.dim = dim
+        self.input_resolution = input_resolution
+        self.depth = depth
+
+        self.blocks = nn.ModuleList([
+            EarthSpecificBlock(dim=dim, input_resolution=input_resolution, num_heads=num_heads, window_size=window_size,
+                               shift_size=None, mlp_ratio=mlp_ratio, qkv_bias=qkv_bias,
+                               qk_scale=qk_scale, drop=drop, attn_drop=attn_drop,
+                               drop_path=drop_path[i] if isinstance(drop_path, list) else drop_path,
+                               roll_type=(i%2), # 1 or 3
+                               act_layer=act_layer,
+                               mlp_layer=mlp_layer,
+                               norm_layer=norm_layer, **kwargs)
+            for i in range(depth)
+        ])
+
+    def forward(self, x, *args, **kwargs):
+        for blk in self.blocks:
+            x = blk(x, *args, **kwargs)
+        return x
+
+
+class CondBasicLayer(BasicLayer):
+    def __init__(self, *args, dim=192, cond_dim=32, **kwargs):
+        super().__init__(*args, dim=dim, **kwargs)
+        self.adaLN_modulation = nn.Sequential(
+            nn.SiLU(),
+            nn.Linear(cond_dim, 6 * dim, bias=True)
+        )
+        nn.init.constant_(self.adaLN_modulation[-1].weight, 0)
+        nn.init.constant_(self.adaLN_modulation[-1].bias, 0)
+        # init the modulation
+
+    def forward(self, x, cond_emb=None):
+        c = self.adaLN_modulation(cond_emb)
+        return super().forward(x, c)
 
 class UpSample(nn.Module):
     """
@@ -105,24 +206,6 @@ class DownSample(nn.Module):
 
         x = self.norm(x)
         x = self.linear(x)
-        return x
-
-class Mlp(nn.Module):
-    def __init__(self, in_features, hidden_features=None, out_features=None, act_layer=nn.GELU, drop=0., **kwargs):
-        super().__init__()
-        out_features = out_features or in_features
-        hidden_features = hidden_features or in_features
-        self.fc1 = nn.Linear(in_features, hidden_features)
-        self.act = act_layer()
-        self.fc2 = nn.Linear(hidden_features, out_features)
-        self.drop = nn.Dropout(drop)
-
-    def forward(self, x: torch.Tensor):
-        x = self.fc1(x)
-        x = self.act(x)
-        x = self.drop(x)
-        x = self.fc2(x)
-        x = self.drop(x)
         return x
 
 class EarthAttention3D(nn.Module):
@@ -361,50 +444,4 @@ class EarthSpecificBlock(nn.Module):
             x = shortcut + gate_msa[:, None, :] * self.drop_path(x)
             mlp_input = self.norm2(x) * (1 + scale_mlp[:, None, :]) + shift_mlp[:, None, :]
             x = x + self.drop_path(gate_mlp[:, None, :] * self.mlp(mlp_input))
-        return x
-
-    
-
-class BasicLayer(nn.Module):
-    """A basic 3D Transformer layer for one stage
-
-    Args:
-        dim (int): Number of input channels.
-        input_resolution (tuple[int]): Input resolution.
-        depth (int): Number of blocks.
-        num_heads (int): Number of attention heads.
-        window_size (tuple[int]): Local window size.
-        mlp_ratio (float): Ratio of mlp hidden dim to embedding dim.
-        qkv_bias (bool, optional): If True, add a learnable bias to query, key, value. Default: True
-        qk_scale (float | None, optional): Override default qk scale of head_dim ** -0.5 if set.
-        drop (float, optional): Dropout rate. Default: 0.0
-        attn_drop (float, optional): Attention dropout rate. Default: 0.0
-        drop_path (float | tuple[float], optional): Stochastic depth rate. Default: 0.0
-        norm_layer (nn.Module, optional): Normalization layer. Default: nn.LayerNorm
-    """
-
-    def __init__(self, dim, input_resolution, depth, num_heads, window_size, mlp_ratio=4., qkv_bias=True, qk_scale=None,
-                 drop=0., attn_drop=0., drop_path=0., act_layer=nn.GELU, norm_layer=nn.LayerNorm,
-                 mlp_layer=Mlp,
-                 **kwargs):
-        super().__init__()
-        self.dim = dim
-        self.input_resolution = input_resolution
-        self.depth = depth
-
-        self.blocks = nn.ModuleList([
-            EarthSpecificBlock(dim=dim, input_resolution=input_resolution, num_heads=num_heads, window_size=window_size,
-                               shift_size=None, mlp_ratio=mlp_ratio, qkv_bias=qkv_bias,
-                               qk_scale=qk_scale, drop=drop, attn_drop=attn_drop,
-                               drop_path=drop_path[i] if isinstance(drop_path, list) else drop_path,
-                               roll_type=(i%2), # 1 or 3
-                               act_layer=act_layer,
-                               mlp_layer=mlp_layer,
-                               norm_layer=norm_layer, **kwargs)
-            for i in range(depth)
-        ])
-
-    def forward(self, x, *args, **kwargs):
-        for blk in self.blocks:
-            x = blk(x, *args, **kwargs)
         return x
