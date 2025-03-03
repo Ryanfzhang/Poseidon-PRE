@@ -12,7 +12,7 @@ class OceanTransformer(nn.Module):
                  emb_dim=64, 
                  cond_dim=32, # dim of the conditioning
                  two_poles=False,
-                 num_heads=(6, 12, 12, 6), 
+                 num_heads=(4, 8, 8, 4), 
                  droppath_coeff=0.2,
                  patch_size=(2, 4, 4),
                  window_size=(2, 6, 12), 
@@ -145,7 +145,6 @@ class OceanTransformer(nn.Module):
         if self.first_interaction_layer:
             x = self.interaction_layer(x)
 
-        print(x.shape)
         x = self.layer1(x, cond_emb)
 
         skip = x
