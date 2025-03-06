@@ -18,6 +18,7 @@ from backbones.model import OceanTransformer
 
 os.environ['CUDA_LAUNCH_BLOCKING']="1"
 os.environ['TORCH_USE_CUDA_DSA'] = "1"
+os.environ['CUDA_VISIBLE_DEVICES'] = os.environ['LOCAL_RANK']
 fix_seed = 2025
 seed_everything(fix_seed)
 
