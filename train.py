@@ -31,7 +31,7 @@ parser.add_argument('--lead_time', type=int, default=7, help='input sequence len
 
 # optimization
 parser.add_argument('--train_epochs', type=int, default=200, help='train epochs')
-parser.add_argument('--batch_size', type=int, default=2, help='batch size of train input data')
+parser.add_argument('--batch_size', type=int, default=3, help='batch size of train input data')
 parser.add_argument('--learning_rate', type=float, default=1e-6, help='optimizer learning rate')
 parser.add_argument('--loss', type=str, default='mae', help='loss function')
 
@@ -64,7 +64,7 @@ for epoch in tqdm(range(args.train_epochs)):
     model.train()
     epoch_time = time.time()
     for i, (input, input_mark, output, output_mark, _) in tqdm(enumerate(train_dloader), total=len(train_dloader), disable=not accelerator.is_local_main_process):
-        input, input_mark, output, output_mark = input.float().squeeze().to(device), input_mark.int().squeeze().to(device), output.float().squeeze().to(device), output_mark.int().squeeze().to(device)
+        input, input_mark, output, output_mark = input.float().to(device), input_mark.int().to(device), output.float().to(device), output_mark.int().to(device)
         input = input.transpose(1,2)
         output = output.transpose(1,2)
 
@@ -72,8 +72,9 @@ for epoch in tqdm(range(args.train_epochs)):
         with accelerator.accumulate(model):
             pred = model(input)
             loss = criteria(pred, output)
-            mask = mask.unsqueeze(0).expand(pred.shape[0], -1, -1, -1, -1)
-            loss = (loss* mask).mean()
+            batch_mask = mask.unsqueeze(0).expand(pred.shape[0], -1, -1, -1, -1)
+            batch_mask = batch_mask.transpose(1,2)
+            loss = (loss* batch_mask).mean()
             accelerator.backward(loss)
 
             if accelerator.sync_gradients:
