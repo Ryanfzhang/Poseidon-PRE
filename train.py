@@ -72,19 +72,17 @@ for epoch in tqdm(range(args.train_epochs)):
         output = output.transpose(1,2)
 
         optimizer.zero_grad()
-        with accelerator.accumulate(model):
-            pred = model(input)
-            loss = criteria(pred, output)
-            batch_mask = mask.unsqueeze(0).expand(pred.shape[0], -1, -1, -1, -1)
-            batch_mask = 1. - batch_mask.transpose(1,2)
-            loss = (loss* batch_mask).mean()
-            accelerator.backward(loss)
+        pred = model(input)
+        loss = criteria(pred, output)
+        batch_mask = mask.unsqueeze(0).expand(pred.shape[0], -1, -1, -1, -1)
+        batch_mask = 1. - batch_mask.transpose(1,2)
+        loss = (loss* batch_mask).mean()
+        accelerator.backward(loss)
 
-            if accelerator.sync_gradients:
-                accelerator.clip_grad_norm_(model.parameters(), 1.0)
-            optimizer.step()
-            lr_scheduler.step()
-            optimizer.zero_grad()
+        accelerator.clip_grad_norm_(model.parameters(), 1.0)
+        optimizer.step()
+        lr_scheduler.step()
+        optimizer.zero_grad()
         train_loss.update(loss.item())
     accelerator.print("Epoch: {}| Train Loss: {:.4f}, Cost Time: {:.4f}".format(epoch, train_loss.avg, time.time()-epoch_time))
     if epoch%10==0:
