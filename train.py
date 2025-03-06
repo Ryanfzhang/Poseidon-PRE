@@ -10,6 +10,7 @@ from timm.utils import AverageMeter
 from timm.utils import AverageMeter
 import torch.nn.functional as F
 from diffusers.optimization import get_cosine_schedule_with_warmup
+import pandas as pd
 
 from utils import check_dir, seed_everything
 from data.dataset import NetCDFDataset
@@ -56,6 +57,8 @@ lr_scheduler = get_cosine_schedule_with_warmup(
 
 train_dloader, test_dloader, model, optimizer, lr_scheduler = accelerator.prepare(train_dloader, test_dloader, model, optimizer, lr_scheduler)
 mask = torch.from_numpy(train_dataset.mask).to(device)
+mean = torch.from_numpy(train_dataset.mean).to(device)
+std = torch.from_numpy(train_dataset.std).to(device)
 criteria = torch.nn.L1Loss(reduce=False)
 
 best_mse_sst, best_mse_salt = 100, 100
@@ -73,7 +76,7 @@ for epoch in tqdm(range(args.train_epochs)):
             pred = model(input)
             loss = criteria(pred, output)
             batch_mask = mask.unsqueeze(0).expand(pred.shape[0], -1, -1, -1, -1)
-            batch_mask = batch_mask.transpose(1,2)
+            batch_mask = 1. - batch_mask.transpose(1,2)
             loss = (loss* batch_mask).mean()
             accelerator.backward(loss)
 
@@ -84,54 +87,45 @@ for epoch in tqdm(range(args.train_epochs)):
             optimizer.zero_grad()
         train_loss.update(loss.item())
     accelerator.print("Epoch: {}| Train Loss: {:.4f}, Cost Time: {:.4f}".format(epoch, train_loss.avg, time.time()-epoch_time))
-    # if epoch%30==0 and epoch!=0:
-    #     with torch.no_grad():
-    #         mean_mae_sst, mean_mse_sst, mean_rmse_sst, mean_mape_sst, mean_mspe_sst =AverageMeter(), AverageMeter(), AverageMeter(), AverageMeter(), AverageMeter()
-    #         mean_mae_salt, mean_mse_salt, mean_rmse_salt, mean_mape_salt, mean_mspe_salt = AverageMeter(), AverageMeter(), AverageMeter(), AverageMeter(), AverageMeter()
-    #         for i, (ninput, _, input_mark, noutput, _, output_mark, _) in enumerate(test_dloader):
-    #             ninput = ninput[:,-2:,:,:]
-    #             noutput = noutput[:,-2:,:,:]
-    #             ninput, input_mark, noutput, output_mark = ninput.float().squeeze().to(device), input_mark.int().squeeze().to(device), noutput.float().squeeze().to(device), output_mark.int().squeeze().to(device)
-    #             latents = torch.randn(
-    #                 noutput.shape,
-    #                 generator=generator,
-    #             ).to(device)
-    #             for t in noise_scheduler.timesteps:
-    #                 timesteps=torch.ones(ninput.shape[0]).long().to(device)
-    #                 with torch.no_grad():
-    #                     noise_pred = model(ninput, input_mark, latents, output_mark, t*timesteps)
-    #                 latents = noise_scheduler.step(noise_pred, t, latents).prev_sample
+    if epoch%10==0:
+        with torch.no_grad():
+            rmse_list, mape_list =[], []
+            for i, (input, input_mark, output, output_mark, _) in tqdm(enumerate(), total=len(train_dloader), disable=not accelerator.is_local_main_process):
+                input, input_mark, output, output_mark = input.float().to(device), input_mark.int().to(device), output.float().to(device), output_mark.int().to(device)
+                input = input.transpose(1,2)
+                output = output.transpose(1,2)
 
-    #             pred = accelerator.gather(latents + ninput) 
-    #             truth = accelerator.gather(noutput)
-    #             pred = pred.detach().cpu().numpy()
-    #             truth = truth.detach().cpu().numpy()
-    #             # pred = pred * std + mean
-    #             # truth = truth * std + mean
-    #             pred_sst = pred[:,0,:,:]
-    #             truth_sst = truth[:,0,:,:]
-    #             pred_salt = pred[:,1,:,:]
-    #             truth_salt = truth[:,1,:,:]
+                pred = model(input)
 
-    #             mae_sst, mse_sst, rmse_sst, mape_sst, mspe_sst = metric(pred_sst, truth_sst)
-    #             mae_salt, mse_salt, rmse_salt, mape_salt, mspe_salt = metric(pred_salt, truth_salt)
-    #             mean_mae_sst.update(mae_sst)
-    #             mean_mse_sst.update(mse_sst)
-    #             mean_rmse_sst.update(rmse_sst)
-    #             mean_mape_sst.update(mape_sst)
-    #             mean_mspe_sst.update(mspe_sst)
-    #             mean_mae_salt.update(mae_salt)
-    #             mean_mse_salt.update(mse_salt)
-    #             mean_rmse_salt.update(rmse_salt)
-    #             mean_mape_salt.update(mape_salt)
-    #             mean_mspe_salt.update(mspe_salt)
+                batch_mean = mean.unsqueeze(0).expand(pred.shape[0], -1, -1, -1, -1)
+                batch_std = std.unsqueeze(0).expand(pred.shape[0], -1, -1, -1, -1)
+                batch_mask = mask.unsqueeze(0).expand(pred.shape[0], -1, -1, -1, -1)
+                batch_mask = 1. - batch_mask.transpose(1,2)
 
-    #         accelerator.print("*"*100)
-    #         accelerator.print("{}-th Epoch Test-> SST MSE : {:.6f}, MAE : {:.6f}, RMSE : {:.6f}, MAPE : {:.6f}, MSPE : {:.6f}\n".format(epoch, mean_mse_sst.avg, mean_mae_sst.avg, mean_rmse_sst.avg, mean_mape_sst.avg, mean_mspe_sst.avg))
-    #         accelerator.print("{}-th Epoch Test-> Salt MSE : {:.6f}, MAE : {:.6f}, RMSE : {:.6f}, MAPE : {:.6f}, MSPE : {:.6f}\n".format(epoch, mean_mse_salt.avg, mean_mae_salt.avg, mean_rmse_salt.avg, mean_mape_salt.avg, mean_mspe_salt.avg))
-    #     if mean_mse_sst.avg < best_mse_sst and mean_mse_salt.avg < best_mse_salt:
-    #         if accelerator.is_main_process:
-    #             best_mse_sst = mean_mse_sst.avg
-    #             best_mse_salt = mean_mse_salt.avg
-    #             torch.save(model.state_dict(), os.path.join(args.checkpoints, 'model_best.pth'))
-    #             accelerator.print("Best Model Saved")
+                pred = accelerator.gather(pred * batch_std + batch_mean) 
+                truth = accelerator.gather(output * batch_std + batch_mean)
+                batch_mask = accelerator.gather(batch_mask)
+                pred = pred.detach().cpu().numpy()
+                truth = truth.detach().cpu().numpy()
+                batch_mask = batch_mask.detach().cpu().numpy()
+
+                rmse = np.mean(np.sqrt(np.sum((pred - truth)**2 * batch_mask, axis=(2,3))/(np.sum(batch_mask, axis=(2,3)) + 1e-10)), axis=0)
+                mape = np.mean(np.sum(np.abs((pred - truth) / truth) * batch_mask, axis=(2,3))/(np.sum(batch_mask, axis=(2,3)) + 1e-10), axis=0)
+                rmse_list.append(rmse)
+                mape.append(mape)
+
+            all_rmse = np.stack(rmse_list, axis=0)
+            all_mape = np.stack(mape_list, axis=0)
+            mean_rmse = np.mean(all_rmse, axis=0)
+            mean_mape = np.mean(all_mape, axis=0)
+
+            accelerator.print("*"*100)
+            rmse = pd.DataFrame(mean_rmse)
+            mape = pd.DataFrame(mean_mape)
+            print("RMSE for all level and all drivers:\n")
+            print(rmse)
+            print("MAPE for all level and all drivers:\n")
+            print(mape)
+
+        if accelerator.is_main_process:
+            torch.save(model.state_dict(), os.path.join(args.checkpoints, 'model_best.pth'))
