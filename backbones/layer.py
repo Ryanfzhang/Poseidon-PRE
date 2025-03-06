@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 import numpy as np
-from timm.models.layers import trunc_normal_, DropPath
+from timm.layers import trunc_normal_, DropPath
 
 import sys
 import os
