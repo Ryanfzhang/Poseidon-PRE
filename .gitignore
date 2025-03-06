@@ -1,3 +1,5 @@
 repository
 visualization
 dataset
+*.pyc
+*.pth
