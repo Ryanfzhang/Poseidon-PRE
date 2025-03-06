@@ -6,6 +6,7 @@ import random
 import numpy as np
 from accelerate import Accelerator
 from tqdm import tqdm
+from timm.utils import AverageMeter
 import torch.nn.functional as F
 from diffusers.optimization import get_cosine_schedule_with_warmup
 import pandas as pd
