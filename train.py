@@ -33,14 +33,14 @@ parser.add_argument('--lead_time', type=int, default=7, help='input sequence len
 
 # optimization
 parser.add_argument('--train_epochs', type=int, default=200, help='train epochs')
-parser.add_argument('--batch_size', type=int, default=3, help='batch size of train input data')
+parser.add_argument('--batch_size', type=int, default=6, help='batch size of train input data')
 parser.add_argument('--learning_rate', type=float, default=1e-6, help='optimizer learning rate')
 parser.add_argument('--loss', type=str, default='mae', help='loss function')
 
 args = parser.parse_args()
 
 check_dir(args.checkpoints)
-accelerator = Accelerator(gradient_accumulation_steps=1)
+accelerator = Accelerator()
 device = accelerator.device
 
 train_dataset = NetCDFDataset(lead_time=args.lead_time)
