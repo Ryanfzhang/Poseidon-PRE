@@ -45,7 +45,7 @@ device = accelerator.device
 train_dataset = NetCDFDataset(lead_time=args.lead_time)
 train_dloader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, prefetch_factor=4, num_workers=4)
 test_dataset = NetCDFDataset(startDate='20200101', endDate='20221228')
-test_dloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, prefetch_factor=4, num_workers=4)
+test_dloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, prefetch_factor=4, num_workers=4, drop_last=True)
 
 model = OceanTransformer()
 optimizer = torch.optim.Adamax(model.parameters(), lr=args.learning_rate, weight_decay=1e-5)
@@ -88,7 +88,7 @@ for epoch in tqdm(range(args.train_epochs)):
     if epoch%10==0:
         with torch.no_grad():
             rmse_list, mape_list =[], []
-            for i, (input, input_mark, output, output_mark, _) in tqdm(enumerate(), total=len(train_dloader), disable=not accelerator.is_local_main_process):
+            for i, (input, input_mark, output, output_mark, _) in tqdm(enumerate(test_dloader), total=len(test_dloader), disable=not accelerator.is_local_main_process):
                 input, input_mark, output, output_mark = input.float().to(device), input_mark.int().to(device), output.float().to(device), output_mark.int().to(device)
                 input = input.transpose(1,2)
                 output = output.transpose(1,2)
