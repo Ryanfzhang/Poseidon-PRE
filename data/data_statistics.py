@@ -35,8 +35,8 @@ def process_key(key):
     file_path = os.path.join("/home/mafzhang/code/Project/ocean-fundation-model-pre/dataset/cmoms", 
                              "{}/{}-{}-{}.npy".format(year, year, month, day))
     input_data = np.load(file_path)
-    mean = np.nanmean(input_data, (0, 2, 3))  # 计算均值
-    std = np.nanstd(input_data, (0, 2, 3))   # 计算标准差
+    mean = np.nanmean(input_data, (2, 3))  # 计算均值
+    std = np.nanstd(input_data, (2, 3))   # 计算标准差
     return mean, std
 
 # 主函数

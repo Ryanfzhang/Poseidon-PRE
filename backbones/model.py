@@ -9,12 +9,12 @@ class OceanTransformer(nn.Module):
     def __init__(self, 
                  lon_resolution=441,
                  lat_resolution=400,
-                 emb_dim=32, 
-                 cond_dim=32, # dim of the conditioning
+                 emb_dim=96, 
+                 cond_dim=16, # dim of the conditioning
                  two_poles=False,
-                 num_heads=(1, 2, 2, 1), 
+                 num_heads=(2, 4, 4, 2), 
                  droppath_coeff=0.2,
-                 patch_size=(4, 8, 8),
+                 patch_size=(2, 4, 4),
                  window_size=(2, 6, 12), 
                  depth_multiplier=1,
                  position_embs_dim=4,
@@ -35,9 +35,9 @@ class OceanTransformer(nn.Module):
 
         # In addition, three constant masks(the topography mask, land-sea mask and soil type mask)
 
-        self.layer1_shape = (8, 50, 56)
+        self.layer1_shape = (15, 100, 111)
         
-        self.layer2_shape = (8, 25, 28)
+        self.layer2_shape = (15, 50, 56)
         
         self.positional_embeddings = nn.Parameter(torch.zeros((position_embs_dim, lat_resolution, lon_resolution)))
         torch.nn.init.trunc_normal_(self.positional_embeddings, 0.02)

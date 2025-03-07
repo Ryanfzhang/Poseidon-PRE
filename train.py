@@ -32,9 +32,10 @@ parser.add_argument('--levels', type=int, default=30, help='input sequence lengt
 parser.add_argument('--drivers', type=int, default=19, help='input sequence length')
 
 # optimization
-parser.add_argument('--train_epochs', type=int, default=200, help='train epochs')
-parser.add_argument('--batch_size', type=int, default=3, help='batch size of train input data')
-parser.add_argument('--learning_rate', type=float, default=1e-6, help='optimizer learning rate')
+parser.add_argument('--train_epochs', type=int, default=100, help='train epochs')
+parser.add_argument('--batch_size', type=int, default=1, help='batch size of train input data')
+parser.add_argument('--learning_rate', type=float, default=5e-4, help='optimizer learning rate')
+parser.add_argument('--weight_decay', type=float, default=3e-6, help='optimizer wd')
 parser.add_argument('--loss', type=str, default='mae', help='loss function')
 
 args = parser.parse_args()
@@ -45,11 +46,11 @@ device = accelerator.device
 
 train_dataset = NetCDFDataset(lead_time=args.lead_time)
 train_dloader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=8)
-test_dataset = NetCDFDataset(startDate='20200101', endDate='20221228')
+test_dataset = NetCDFDataset(startDate='20200101', endDate='20221228', lead_time=args.lead_time)
 test_dloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=8, drop_last=True)
 
 model = OceanTransformer()
-optimizer = torch.optim.Adamax(model.parameters(), lr=args.learning_rate, weight_decay=1e-5)
+optimizer = torch.optim.Adamax(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)
 lr_scheduler = get_cosine_schedule_with_warmup(
     optimizer=optimizer,
     num_warmup_steps= 1000, 
@@ -77,11 +78,11 @@ for epoch in tqdm(range(args.train_epochs)):
         loss = criteria(pred, output)
         batch_mask = mask.unsqueeze(0).expand(pred.shape[0], -1, -1, -1, -1)
         batch_mask = 1. - batch_mask.transpose(1,2)
-        batch_std= std.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand(pred.shape[0], -1, -1, -1, -1)
-        loss = (batch_std * loss* batch_mask).mean()
+        # batch_std= std.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand(pred.shape[0], -1, -1, -1, -1)
+        loss = (loss* batch_mask).mean()
         accelerator.backward(loss)
 
-        # accelerator.clip_grad_norm_(model.parameters(), 1.0)
+        accelerator.clip_grad_norm_(model.parameters(), 1.0)
         optimizer.step()
         lr_scheduler.step()
         optimizer.zero_grad()
@@ -89,7 +90,7 @@ for epoch in tqdm(range(args.train_epochs)):
         torch.cuda.empty_cache()
 
     accelerator.print("Epoch: {}| Train Loss: {:.4f}, Cost Time: {:.4f}".format(epoch, train_loss.avg, time.time()-epoch_time))
-    if epoch%10==0:
+    if epoch%10==0 and epoch!=0:
         with torch.no_grad():
             rmse_list =[]
             for i, (input, input_mark, output, output_mark, _) in tqdm(enumerate(test_dloader), total=len(test_dloader), disable=not accelerator.is_local_main_process):
@@ -99,8 +100,10 @@ for epoch in tqdm(range(args.train_epochs)):
 
                 pred = model(input)
 
-                batch_mean = mean.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand(pred.shape[0], -1, -1, -1, -1)
-                batch_std= std.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand(pred.shape[0], -1, -1, -1, -1)
+                batch_mean = mean.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand(pred.shape[0], -1, -1, -1, -1)
+                batch_std= std.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand(pred.shape[0], -1, -1, -1, -1)
+                batch_mean = batch_mean.transpose(1,2)
+                batch_std = batch_std.transpose(1,2)
                 batch_mask = mask.unsqueeze(0).expand(pred.shape[0], -1, -1, -1, -1)
                 batch_mask = 1. - batch_mask.transpose(1,2)
 
