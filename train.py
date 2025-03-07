@@ -90,7 +90,7 @@ for epoch in tqdm(range(args.train_epochs)):
         torch.cuda.empty_cache()
 
     accelerator.print("Epoch: {}| Train Loss: {:.4f}, Cost Time: {:.4f}".format(epoch, train_loss.avg, time.time()-epoch_time))
-    if epoch%10==0 and epoch!=0:
+    if epoch%10==0: 
         with torch.no_grad():
             rmse_list =[]
             for i, (input, input_mark, output, output_mark, _) in tqdm(enumerate(test_dloader), total=len(test_dloader), disable=not accelerator.is_local_main_process):

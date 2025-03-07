@@ -92,11 +92,11 @@ class NetCDFDataset(data.Dataset):
         return input, input_mark, target, target_mark, periods
     
     def normalize(self, input):
-        output = (input- self.mean[np.newaxis, :, np.newaxis, np.newaxis])/(self.std[np.newaxis, :, np.newaxis, np.newaxis])
+        output = (input- self.mean[:, :, np.newaxis, np.newaxis])/(self.std[:, :, np.newaxis, np.newaxis])
         return output
 
     def denormalize(self, input):
-        output = input * self.mean[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis] + self.mean[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis]
+        output = input * self.mean[:, :, np.newaxis, np.newaxis, np.newaxis] + self.mean[:, :, np.newaxis, np.newaxis, np.newaxis]
         return output
 
     def __len__(self):
