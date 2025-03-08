@@ -48,7 +48,13 @@ test_dataset = NetCDFDataset(startDate='20200101', endDate='20221228', lead_time
 test_dloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=8, drop_last=True)
 
 model = OceanTransformer()
-model.load_state_dict(torch.load(os.path.join(args.checkpoints, 'model_best.pth')))
+params = torch.load(os.path.join(args.checkpoints, 'model_best.pth'))
+new_params = {}
+for key, value in params:
+    new_key = key[6:]
+    new_params[new_key] = value
+
+model.load_state_dict(new_params)
 
 test_dloader, model = accelerator.prepare(test_dloader, model)
 mask = torch.from_numpy(test_dataset.mask).to(device)
