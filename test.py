@@ -56,6 +56,7 @@ for k, v in params.items():
     new_params[name] = v
 
 model.load_state_dict(new_params)
+del new_params, params
 
 test_dloader, model = accelerator.prepare(test_dloader, model)
 mask = torch.from_numpy(test_dataset.mask).to(device)
@@ -65,7 +66,8 @@ criteria = torch.nn.L1Loss(reduction='none')
 
 best_mse_sst, best_mse_salt = 100, 100
 with torch.no_grad():
-    rmse_list =[]
+    all_rmse = 0
+    count = 0
     for i, (input, input_mark, output, output_mark, _) in tqdm(enumerate(test_dloader), total=len(test_dloader), disable=not accelerator.is_local_main_process):
         input, input_mark, output, output_mark = input.float().to(device), input_mark.int().to(device), output.float().to(device), output_mark.int().to(device)
         input = input.transpose(1,2)
@@ -87,10 +89,11 @@ with torch.no_grad():
         rmse = rmse.detach().cpu().numpy()
         torch.cuda.empty_cache()
 
-        rmse_list.append(rmse)
+        all_rmse = all_rmse + rmse
+        count += 1
 
     if accelerator.is_main_process:
-        all_rmse = np.stack(rmse_list, axis=0)
+        all_rmse = all_rmse / count
         mean_rmse = np.sqrt(np.mean(all_rmse, axis=0))
         print(mean_rmse)
         print(mean_rmse.shape)
