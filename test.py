@@ -51,7 +51,7 @@ model = OceanTransformer()
 params = torch.load(os.path.join(args.checkpoints, 'model_best.pth'))
 from collections import OrderedDict
 new_params = OrderedDict()
-for k, v in state_dict.items():
+for k, v in params.items():
     name = k[7:] 
     new_state_dict[name] = v
 
