@@ -53,7 +53,7 @@ from collections import OrderedDict
 new_params = OrderedDict()
 for k, v in params.items():
     name = k[7:] 
-    new_state_dict[name] = v
+    new_params[name] = v
 
 model.load_state_dict(new_params)
 
