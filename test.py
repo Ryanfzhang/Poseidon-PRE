@@ -49,10 +49,11 @@ test_dloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_s
 
 model = OceanTransformer()
 params = torch.load(os.path.join(args.checkpoints, 'model_best.pth'))
-new_params = {}
-for key, value in params:
-    new_key = key[6:]
-    new_params[new_key] = value
+from collections import OrderedDict
+new_params = OrderedDict()
+for k, v in state_dict.items():
+    name = k[7:] 
+    new_state_dict[name] = v
 
 model.load_state_dict(new_params)
 
