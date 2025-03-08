@@ -1,5 +1,6 @@
 repository
 visualization
 dataset
+checkpoints
 *.pyc
 *.pth

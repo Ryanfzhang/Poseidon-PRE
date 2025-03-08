@@ -50,43 +50,79 @@ test_dataset = NetCDFDataset(startDate='20200101', endDate='20221228', lead_time
 test_dloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=8, drop_last=True)
 
 model = OceanTransformer()
-model.load_state_dict(torch.load("./checkpoints/model_best.pth"))
+optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay, betas=(0.9, 0.995))
+lr_scheduler = get_cosine_schedule_with_warmup(
+    optimizer=optimizer,
+    num_warmup_steps= 1000, 
+    num_training_steps=len(train_dloader) * args.train_epochs,
+)
 
-test_dloader, model = accelerator.prepare(test_dloader, model)
-mask = torch.from_numpy(test_dataset.mask).to(device)
-mean = torch.from_numpy(test_dataset.mean).to(device)
-std = torch.from_numpy(test_dataset.std).to(device)
+train_dloader, test_dloader, model, optimizer, lr_scheduler = accelerator.prepare(train_dloader, test_dloader, model, optimizer, lr_scheduler)
+mask = torch.from_numpy(train_dataset.mask).to(device)
+mean = torch.from_numpy(train_dataset.mean).to(device)
+std = torch.from_numpy(train_dataset.std).to(device)
 criteria = torch.nn.L1Loss(reduction='none')
 
 best_mse_sst, best_mse_salt = 100, 100
-with torch.no_grad():
-    rmse_list =[]
-    for i, (input, input_mark, output, output_mark, _) in tqdm(enumerate(test_dloader), total=len(test_dloader), disable=not accelerator.is_local_main_process):
+for epoch in tqdm(range(args.train_epochs)):
+    train_loss = AverageMeter()
+    model.train()
+    epoch_time = time.time()
+    for i, (input, input_mark, output, output_mark, _) in tqdm(enumerate(train_dloader), total=len(train_dloader), disable=not accelerator.is_local_main_process):
         input, input_mark, output, output_mark = input.float().to(device), input_mark.int().to(device), output.float().to(device), output_mark.int().to(device)
         input = input.transpose(1,2)
         output = output.transpose(1,2)
 
+        optimizer.zero_grad()
         pred = model(input)
-
-        batch_mean = mean.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand(pred.shape[0], -1, -1, -1, -1)
-        batch_std= std.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand(pred.shape[0], -1, -1, -1, -1)
-        batch_mean = batch_mean.transpose(1,2)
-        batch_std = batch_std.transpose(1,2)
+        loss = criteria(pred, output)
         batch_mask = mask.unsqueeze(0).expand(pred.shape[0], -1, -1, -1, -1)
         batch_mask = 1. - batch_mask.transpose(1,2)
+        # batch_std= std.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand(pred.shape[0], -1, -1, -1, -1)
+        loss = (loss* batch_mask).mean()
+        accelerator.backward(loss)
 
-        pred = pred * batch_std + batch_mean
-        truth = output * batch_std + batch_mean
-        rmse = torch.mean((pred - truth)**2 * batch_mask, 0)
-        rmse = accelerator.gather(rmse)
-        rmse = rmse.detach().cpu().numpy()
+        accelerator.clip_grad_norm_(model.parameters(), 1.0)
+        optimizer.step()
+        lr_scheduler.step()
+        optimizer.zero_grad()
+        train_loss.update(loss.detach().cpu().item())
         torch.cuda.empty_cache()
 
-        rmse_list.append(rmse)
+    accelerator.print("Epoch: {}| Train Loss: {:.4f}, Cost Time: {:.4f}".format(epoch, train_loss.avg, time.time()-epoch_time))
+    if epoch%10==0: 
+        with torch.no_grad():
+            rmse_list =[]
+            for i, (input, input_mark, output, output_mark, _) in tqdm(enumerate(test_dloader), total=len(test_dloader), disable=not accelerator.is_local_main_process):
+                input, input_mark, output, output_mark = input.float().to(device), input_mark.int().to(device), output.float().to(device), output_mark.int().to(device)
+                input = input.transpose(1,2)
+                output = output.transpose(1,2)
 
-    all_rmse = np.stack(rmse_list, axis=0)
-    mean_rmse = np.sqrt(np.sum(all_rmse, axis=0))
+                pred = model(input)
 
-    if accelerator.is_main_process:
-        print("RMSE for all level and all drivers:\n")
-        print(mean_rmse.shape)
+                batch_mean = mean.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand(pred.shape[0], -1, -1, -1, -1)
+                batch_std= std.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand(pred.shape[0], -1, -1, -1, -1)
+                batch_mean = batch_mean.transpose(1,2)
+                batch_std = batch_std.transpose(1,2)
+                batch_mask = mask.unsqueeze(0).expand(pred.shape[0], -1, -1, -1, -1)
+                batch_mask = 1. - batch_mask.transpose(1,2)
+
+                pred = pred * batch_std + batch_mean
+                truth = output * batch_std + batch_mean
+                rmse = torch.mean(torch.sqrt(torch.sum(torch.sum((pred - truth)**2 * batch_mask, -1), dim=-1)/(torch.sum(torch.sum(batch_mask, dim=-1), dim=-1) + 1e-10)), dim=0)
+                rmse = accelerator.gather(rmse)
+                rmse = rmse.detach().cpu().numpy()
+                torch.cuda.empty_cache()
+
+                rmse_list.append(rmse.reshape(-1, args.drivers, args.levels))
+
+            all_rmse = np.concatenate(rmse_list, axis=0)
+            mean_rmse = np.mean(all_rmse, axis=0)
+
+            accelerator.print("*"*100)
+            rmse = pd.DataFrame(mean_rmse)
+
+            if accelerator.is_main_process:
+                print("RMSE for all level and all drivers:\n")
+                print(rmse)
+                torch.save(model.state_dict(), os.path.join(args.checkpoints, 'model_best.pth'))
