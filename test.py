@@ -95,5 +95,6 @@ with torch.no_grad():
     if accelerator.is_main_process:
         all_rmse = all_rmse / count
         mean_rmse = np.sqrt(np.mean(all_rmse, axis=0))
+        np.save(os.path.join(args.checkpoints, 'rmse.npy'), mean_rmse)
         print(mean_rmse)
         print(mean_rmse.shape)
