@@ -85,10 +85,7 @@ with torch.no_grad():
         pred = pred * batch_std + batch_mean
         truth = output * batch_std + batch_mean
         rmse = torch.mean((pred - truth)**2 * batch_mask, dim=0, keepdim=True)
-        print(rmse.shape)
         rmse = accelerator.gather(rmse)
-        print(rmse.shape)
-        exit()
         rmse = rmse.detach().cpu().numpy()
         torch.cuda.empty_cache()
 
