@@ -16,7 +16,7 @@ class NetCDFDataset(data.Dataset):
     """Dataset class for the era5 upper and surface variables."""
 
     def __init__(self,
-                 dataset_path = '/home/mafzhang/code/Project/ocean-fundation-model-pre/dataset/cmoms/',
+                 dataset_path = '/home/mafzhang/data/cmoms/',
                  data_transform = None,
                  seed = 1234,
                  training = True,
