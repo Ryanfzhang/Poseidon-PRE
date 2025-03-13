@@ -37,8 +37,8 @@ class NetCDFDataset(data.Dataset):
         self.std = np.load(os.path.join(self.dataset_path, "std.npy"))
         self.mask = np.load(os.path.join(self.dataset_path, "mask.npy"))
 
-        self.keys = list(pd.date_range(start=startDate, end=endDate, freq=freq))
-        self.length = len(self.keys) - lead_time
+        self.keys = list(pd.date_range(start=startDate, end=endDate, freq=freq))[1:]
+        self.length = len(self.keys) - lead_time - 1
 
         random.seed(seed)
 
@@ -66,14 +66,22 @@ class NetCDFDataset(data.Dataset):
 
         # convert datetime obj to string for matching file name and return key
         start_time_str = datetime.strftime(key, '%Y%m%d')
-        end_time = key + timedelta(days=self.lead_time)
-        end_time_str = end_time.strftime('%Y%m%d')
         
         # Prepare the input_surface dataset
         year, month, day = start_time_str[0:4], start_time_str[4:6], start_time_str[6:]
         input = np.load(os.path.join(self.dataset_path , "{}/{}-{}-{}.npy".format(year, year, month, day)))
         input_mark = np.stack([start_time.month - 1, start_time.day -1])
 
+        start_time_minus_1 = key - timedelta(days=1)
+        start_time_minus_1_str = start_time_minus_1.strftime('%Y%m%d')
+        year, month, day = start_time_minus_1_str[0:4], start_time_minus_1_str[4:6], start_time_minus_1_str[6:]
+        input_minus_1 = np.load(os.path.join(self.dataset_path , "{}/{}-{}-{}.npy".format(year, year, month, day)))
+        input_minus_1_mark = np.stack([start_time_minus_1.month - 1, start_time_minus_1.day -1])
+        input = np.stack([input, input_minus_1], axis=3)
+        input_mark = np.stack([input_mark, input_minus_1_mark], axis=0)
+
+        end_time = key + timedelta(days=self.lead_time)
+        end_time_str = end_time.strftime('%Y%m%d')
         year, month, day = end_time_str[0:4], end_time_str[4:6], end_time_str[6:]
         target = np.load(os.path.join(self.dataset_path , "{}/{}-{}-{}.npy".format(year, year, month, day)))
         target_mark = np.stack([end_time.month - 1, end_time.day -1])

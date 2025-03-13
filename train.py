@@ -26,6 +26,8 @@ parser = argparse.ArgumentParser(description='OceanFormer Forecasting')
 parser.add_argument('--freq', type=str, default='d',
                     help='freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h')
 parser.add_argument('--checkpoints', type=str, default='./checkpoints/', help='location of model checkpoints')
+parser.add_argument('--dataset_path', type=str, default='/home/mafzhang/data/cmoms/', help='location of dataset')
+
 # forecasting task
 parser.add_argument('--lead_time', type=int, default=7, help='input sequence length')
 parser.add_argument('--levels', type=int, default=30, help='input sequence length')
