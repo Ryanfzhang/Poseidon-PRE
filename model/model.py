@@ -285,10 +285,13 @@ class Xuanming(nn.Module):
         input_resolution = int(img_size[1] / patch_size[2] / 2), int(img_size[2] / patch_size[3] / 2)
 
         self.cube_embedding = CubeEmbedding(img_size, patch_size, in_chans, embed_dim, n_levels)
+        self.positional_embeddings = nn.Parameter(torch.zeros((256, input_resolution[0] * 2, input_resolution[1] * 2)))
+        self.month_embeddings = nn.Embedding(256, 12)
+        self.day_embeddings = nn.Embedding(256, 31)
 
-        self.u_transformer = UTransformer(embed_dim, num_groups, input_resolution, num_heads, window_size, depth=48)
+        self.u_transformer = UTransformer(embed_dim + 3*256, num_groups, input_resolution, num_heads, window_size, depth=48)
 
-        self.fc = nn.Linear(embed_dim, out_chans * n_levels * patch_size[2] * patch_size[3])
+        self.fc = nn.Linear(embed_dim + 3*256, out_chans * n_levels * patch_size[2] * patch_size[3])
 
         self.in_chans = in_chans
         self.embed_dim = embed_dim
@@ -298,13 +301,17 @@ class Xuanming(nn.Module):
         self.input_resolution = input_resolution
         self.img_size = img_size
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor, x_mark: torch.Tensor):
         B, _, _, _, _, _ = x.shape
         _, _, patch_lat, patch_lon = self.patch_size
         Lat, Lon = self.input_resolution
         Lat, Lon = Lat * 2, Lon * 2
         x = self.cube_embedding(x).squeeze(2)  # B C Lat Lon
-        print(x.shape)
+        position_embedding = self.positional_embeddings.unsqueeze(0).expand(B, -1, -1, -1)
+        month_embedding = self.month_embeddings(x_mark[:, 0]).unsqueeze(-1).unsqueeze(-1).expand(-1, -1, Lat, Lon)
+        day_embedding = self.day_embeddings(x_mark[:, 1]).unsqueeze(-1).unsqueeze(-1).expand(-1, -1, Lat, Lon)
+
+        x = torch.cat([x, position_embedding, month_embedding, day_embedding], dim=1)
 
         x = self.u_transformer(x)
         x = self.fc(x.permute(0, 2, 3, 1))  # B Lat Lon C
@@ -322,4 +329,5 @@ class Xuanming(nn.Module):
 if __name__=="__main__":
     model = Xuanming()
     x = torch.randn(2, 19, 30, 2, 400, 441)
-    y = model(x)
+    x_mark = torch.Tensor([[11, 30], [1,28]])
+    y = model(x, x_mark)
