@@ -123,4 +123,4 @@ class NetCDFDataset(data.Dataset):
 
 if __name__=="__main__":
     dataset = NetCDFDataset()
-    print(dataset.__getitem__(dataset.__len__()-1)[1])
+    print(dataset.__getitem__(dataset.__len__()-1)[0].shape)
