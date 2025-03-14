@@ -311,7 +311,12 @@ class Xuanming(nn.Module):
         month_embedding = self.month_embeddings(x_mark[:, 0]).unsqueeze(-1).unsqueeze(-1).expand(-1, -1, Lat, Lon)
         day_embedding = self.day_embeddings(x_mark[:, 1]).unsqueeze(-1).unsqueeze(-1).expand(-1, -1, Lat, Lon)
 
+        print(month_embedding.shape)
+        print(day_embedding.shape)
+
+        print(x.shape)
         x = torch.cat([x, position_embedding, month_embedding, day_embedding], dim=1)
+        print(x.shape)
 
         x = self.u_transformer(x)
         x = self.fc(x.permute(0, 2, 3, 1))  # B Lat Lon C
