@@ -156,14 +156,10 @@ class CubeEmbedding(nn.Module):
         B, C, N, T, Lat, Lon = x.shape
         assert T == self.img_size[0] and Lat == self.img_size[1] and Lon == self.img_size[2], \
             f"Input image size ({T}*{Lat}*{Lon}) doesn't match model ({self.img_size[0]}*{self.img_size[1]}*{self.img_size[2]})."
-        print(x.shape)
         x = self.proj(x)
-        print(x.shape)
         x = x.reshape(B, self.embed_dim, -1).transpose(1, 2)  # B T*Lat*Lon C
-        print(x.shape)
         if self.norm is not None:
             x = self.norm(x)
-        print(self.patches_resolution)
         x = x.transpose(1, 2).reshape(B, self.embed_dim, *self.patches_resolution)
         return x
 
