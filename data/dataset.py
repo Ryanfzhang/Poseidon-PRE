@@ -79,9 +79,10 @@ class NetCDFDataset(data.Dataset):
         start_time_minus_1 = key - timedelta(days=1)
         start_time_minus_1_str = start_time_minus_1.strftime('%Y%m%d')
         year, month, day = start_time_minus_1_str[0:4], start_time_minus_1_str[4:6], start_time_minus_1_str[6:]
-        # input_minus_1 = np.load(os.path.join(self.dataset_path , "{}/{}-{}-{}.npy".format(year, year, month, day)))
-        # input_minus_1_mark = np.stack([start_time_minus_1.month - 1, start_time_minus_1.day -1])
+        input_minus_1 = np.load(os.path.join(self.dataset_path , "{}/{}-{}-{}.npy".format(year, year, month, day)))
         input = np.stack([input, input_minus_1], axis=2)
+
+        # input_minus_1_mark = np.stack([start_time_minus_1.month - 1, start_time_minus_1.day -1])
         # input_mark = np.stack([input_mark, input_minus_1_mark], axis=0)
 
         end_time = key + timedelta(days=self.lead_time)
