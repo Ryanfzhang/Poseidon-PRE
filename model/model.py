@@ -6,6 +6,7 @@ import math
 import torch.nn.functional as F
 from timm.layers.helpers import to_2tuple
 from timm.models.swin_transformer_v2 import SwinTransformerV2Stage
+from einops import rearrange
 
 from typing import Sequence
 from model.utils import get_pad2d
@@ -282,6 +283,7 @@ class Xuanming(nn.Module):
                  embed_dim=1536, side_information_dim=256, num_groups=32, num_heads=4, window_size=7):
         super().__init__()
         input_resolution = int(img_size[1] / patch_size[2] / 2), int(img_size[2] / patch_size[3] / 2)
+        layer_reduction = n_levels // patch_size[0]
 
         self.cube_embedding = CubeEmbedding(img_size, patch_size, in_chans, embed_dim, n_levels)
         self.positional_embeddings = nn.Parameter(torch.zeros((side_information_dim, input_resolution[0] * 2, input_resolution[1] * 2)))
@@ -289,9 +291,10 @@ class Xuanming(nn.Module):
         self.day_embeddings = nn.Embedding(31, side_information_dim)
 
         self.u_transformer = UTransformer(embed_dim + side_information_dim, num_groups, input_resolution, num_heads, window_size, depth=12)
-
-        self.fc = nn.Linear(embed_dim + side_information_dim, out_chans * n_levels * patch_size[2] * patch_size[3])
-
+        self.fc = nn.Linear(embed_dim + side_information_dim, out_chans * layer_reduction * patch_size[2] * patch_size[3])
+        self.conv = nn.Conv3d(layer_reduction, n_levels, kernel_size=1)
+        
+        self.layer_reduction = layer_reduction
         self.in_chans = in_chans
         self.embed_dim = embed_dim
         self.num_levels = n_levels
@@ -314,10 +317,12 @@ class Xuanming(nn.Module):
 
         x = self.u_transformer(x)
         x = self.fc(x.permute(0, 2, 3, 1))  # B Lat Lon C
-        x = x.reshape(B, Lat, Lon, patch_lat, patch_lon, self.out_chans*self.num_levels).permute(0, 1, 3, 2, 4, 5) # B, lat, patch_lat, lon, patch_lon, C
+        x = x.reshape(B, Lat, Lon, patch_lat, patch_lon, self.out_chans, self.layer_reduction).permute(0, 1, 3, 2, 4, 5, 6) # B, lat, patch_lat, lon, patch_lon, C
 
-        x = x.reshape(B, Lat * patch_lat, Lon * patch_lon, self.out_chans*self.num_levels)
-        x = x.permute(0, 3, 1, 2)  # B C Lat Lon
+
+        x = rearrange(x, 'B Lat patch_lat Lon patch_lon C N -> B N C (Lat patch_lat) (Lon patch_lon)')
+        x = self.conv(x)
+        x = rearrange(x, 'B N C (Lat patch_lat) (Lon patch_lon) -> B (C N) (Lat patch_lat) (Lon patch_lon)')
 
         # bilinear
         x = F.interpolate(x, size=self.img_size[1:], mode="bilinear")
