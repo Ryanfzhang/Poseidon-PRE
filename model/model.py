@@ -253,7 +253,6 @@ class UTransformer(nn.Module):
         _, _, pad_lat, pad_lon = x.shape
 
         x = x.permute(0, 2, 3, 1)  # B Lat Lon C
-        print(x.shape)
         x = self.layer(x)
         x = x.permute(0, 3, 1, 2)
 
@@ -279,19 +278,19 @@ class Xuanming(nn.Module):
         num_heads (int, optional): Number of attention heads.
         window_size (int | tuple[int], optional): Local window size.
     """
-    def __init__(self, img_size=(2, 400, 441), patch_size=(5, 2, 4, 4), in_chans=19, n_levels=30, out_chans=19,
-                 embed_dim=1536, num_groups=32, num_heads=8, window_size=4):
+    def __init__(self, img_size=(2, 400, 441), patch_size=(5, 2, 8, 8), in_chans=19, n_levels=30, out_chans=19,
+                 embed_dim=768, num_groups=32, num_heads=4, window_size=7):
         super().__init__()
         input_resolution = int(img_size[1] / patch_size[2] / 2), int(img_size[2] / patch_size[3] / 2)
 
         self.cube_embedding = CubeEmbedding(img_size, patch_size, in_chans, embed_dim, n_levels)
-        self.positional_embeddings = nn.Parameter(torch.zeros((256, input_resolution[0] * 2, input_resolution[1] * 2)))
-        self.month_embeddings = nn.Embedding(12, 256)
-        self.day_embeddings = nn.Embedding(31, 256)
+        self.positional_embeddings = nn.Parameter(torch.zeros((128, input_resolution[0] * 2, input_resolution[1] * 2)))
+        self.month_embeddings = nn.Embedding(12, 128)
+        self.day_embeddings = nn.Embedding(31, 128)
 
-        self.u_transformer = UTransformer(embed_dim + 3*256, num_groups, input_resolution, num_heads, window_size, depth=48)
+        self.u_transformer = UTransformer(embed_dim + 128, num_groups, input_resolution, num_heads, window_size, depth=12)
 
-        self.fc = nn.Linear(embed_dim + 3*256, out_chans * n_levels * patch_size[2] * patch_size[3])
+        self.fc = nn.Linear(embed_dim + 128, out_chans * n_levels * patch_size[2] * patch_size[3])
 
         self.in_chans = in_chans
         self.embed_dim = embed_dim
@@ -311,7 +310,7 @@ class Xuanming(nn.Module):
         month_embedding = self.month_embeddings(x_mark[:, 0]).unsqueeze(-1).unsqueeze(-1).expand(-1, -1, Lat, Lon)
         day_embedding = self.day_embeddings(x_mark[:, 1]).unsqueeze(-1).unsqueeze(-1).expand(-1, -1, Lat, Lon)
 
-        x = torch.cat([x, position_embedding, month_embedding, day_embedding], dim=1)
+        x = torch.cat([x, position_embedding + month_embedding + day_embedding], dim=1)
 
         x = self.u_transformer(x)
         x = self.fc(x.permute(0, 2, 3, 1))  # B Lat Lon C
