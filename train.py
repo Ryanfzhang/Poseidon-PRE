@@ -76,7 +76,7 @@ for epoch in tqdm(range(args.train_epochs)):
 
         optimizer.zero_grad()
         pred = model(input, input_mark)
-        loss = criteria(pred, output - input[:,:,:,1])
+        loss = criteria(pred, output)
         batch_mask = mask.unsqueeze(0).expand(pred.shape[0], -1, -1, -1, -1)
         batch_mask = 1. - batch_mask.transpose(1,2)
         # batch_std= std.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand(pred.shape[0], -1, -1, -1, -1)
@@ -109,8 +109,8 @@ for epoch in tqdm(range(args.train_epochs)):
                 batch_mask = 1. - batch_mask.transpose(1,2)
                 batch_scale = scale.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
 
-                pred = batch_scale * (input[:,:,:,1] + pred)
-                truth = batch_scale * output 
+                pred = pred / batch_scale
+                truth = output / batch_scale
                 rmse = torch.mean(torch.sqrt(torch.sum(torch.sum((pred - truth)**2 * batch_mask, -1), dim=-1)/(torch.sum(torch.sum(batch_mask, dim=-1), dim=-1) + 1e-10)), dim=0)
                 rmse = accelerator.gather(rmse)
                 rmse = rmse.detach().cpu().numpy()
