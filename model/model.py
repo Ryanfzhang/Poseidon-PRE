@@ -329,5 +329,5 @@ class Xuanming(nn.Module):
 if __name__=="__main__":
     model = Xuanming()
     x = torch.randn(2, 19, 30, 2, 400, 441)
-    x_mark = torch.Tensor([[11, 30], [1,28]])
+    x_mark = torch.Tensor([[11, 30], [1,28]], dtype=torch.long)
     y = model(x, x_mark)
