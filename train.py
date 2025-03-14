@@ -13,14 +13,14 @@ import pandas as pd
 
 from utils import check_dir, seed_everything
 from data.dataset import NetCDFDataset
-from backbones.model import OceanTransformer
+from model.model import Xuanming
 
 # os.environ['CUDA_LAUNCH_BLOCKING']="1"
 # os.environ['TORCH_USE_CUDA_DSA'] = "1"
 fix_seed = 2025
 seed_everything(fix_seed)
 
-parser = argparse.ArgumentParser(description='OceanFormer Forecasting')
+parser = argparse.ArgumentParser(description='Ocean Forecasting')
 
 # data loader
 parser.add_argument('--freq', type=str, default='d',
@@ -51,7 +51,7 @@ train_dloader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch
 test_dataset = NetCDFDataset(startDate='20200101', endDate='20221228', lead_time=args.lead_time)
 test_dloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=8, drop_last=True)
 
-model = OceanTransformer()
+model = Xuanming()
 optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay, betas=(0.9, 0.995))
 lr_scheduler = get_cosine_schedule_with_warmup(
     optimizer=optimizer,
@@ -61,8 +61,7 @@ lr_scheduler = get_cosine_schedule_with_warmup(
 
 train_dloader, test_dloader, model, optimizer, lr_scheduler = accelerator.prepare(train_dloader, test_dloader, model, optimizer, lr_scheduler)
 mask = torch.from_numpy(train_dataset.mask).to(device)
-mean = torch.from_numpy(train_dataset.mean).to(device)
-std = torch.from_numpy(train_dataset.std).to(device)
+scale = torch.from_numpy(train_dataset.scale).to(device)
 criteria = torch.nn.L1Loss(reduction='none')
 
 best_mse_sst, best_mse_salt = 100, 100
@@ -71,13 +70,13 @@ for epoch in tqdm(range(args.train_epochs)):
     model.train()
     epoch_time = time.time()
     for i, (input, input_mark, output, output_mark, _) in tqdm(enumerate(train_dloader), total=len(train_dloader), disable=not accelerator.is_local_main_process):
-        input, input_mark, output, output_mark = input.float().to(device), input_mark.int().to(device), output.float().to(device), output_mark.int().to(device)
+        input, input_mark, output, output_mark = input.float().to(device), input_mark.long().to(device), output.float().to(device), output_mark.long().to(device)
         input = input.transpose(1,2)
         output = output.transpose(1,2)
 
         optimizer.zero_grad()
         pred = model(input)
-        loss = criteria(pred, output)
+        loss = criteria(pred, output - input[:,:,:,1])
         batch_mask = mask.unsqueeze(0).expand(pred.shape[0], -1, -1, -1, -1)
         batch_mask = 1. - batch_mask.transpose(1,2)
         # batch_std= std.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand(pred.shape[0], -1, -1, -1, -1)
@@ -102,15 +101,16 @@ for epoch in tqdm(range(args.train_epochs)):
 
                 pred = model(input)
 
-                batch_mean = mean.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand(pred.shape[0], -1, -1, -1, -1)
-                batch_std= std.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand(pred.shape[0], -1, -1, -1, -1)
-                batch_mean = batch_mean.transpose(1,2)
-                batch_std = batch_std.transpose(1,2)
+                # batch_mean = mean.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand(pred.shape[0], -1, -1, -1, -1)
+                # batch_std= std.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand(pred.shape[0], -1, -1, -1, -1)
+                # batch_mean = batch_mean.transpose(1,2)
+                # batch_std = batch_std.transpose(1,2)
                 batch_mask = mask.unsqueeze(0).expand(pred.shape[0], -1, -1, -1, -1)
                 batch_mask = 1. - batch_mask.transpose(1,2)
+                batch_scale = scale.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
 
-                pred = pred * batch_std + batch_mean
-                truth = output * batch_std + batch_mean
+                pred = batch_scale * (input[:,:,:,1] + pred)
+                truth = batch_scale * output 
                 rmse = torch.mean(torch.sqrt(torch.sum(torch.sum((pred - truth)**2 * batch_mask, -1), dim=-1)/(torch.sum(torch.sum(batch_mask, dim=-1), dim=-1) + 1e-10)), dim=0)
                 rmse = accelerator.gather(rmse)
                 rmse = rmse.detach().cpu().numpy()
