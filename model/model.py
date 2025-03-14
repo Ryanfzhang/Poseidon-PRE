@@ -161,7 +161,7 @@ class Xuanming(nn.Module):
 
         self.u_transformer = UTransformer(embed_dim, num_groups, input_resolution, num_heads, window_size, depth=48)
 
-        self.fc = nn.Linear(embed_dim, out_chans * patch_size[1] * patch_size[2])
+        self.fc = nn.Linear(embed_dim, out_chans * time_patch_size[1] * time_patch_size[2])
 
         self.patch_size = patch_size
         self.input_resolution = input_resolution
