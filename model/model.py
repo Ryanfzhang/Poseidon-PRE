@@ -1,12 +1,137 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
+from torch.nn.modules.utils import _quadruple
+import math
+import torch.nn.functional as F
 from timm.layers.helpers import to_2tuple
 from timm.models.swin_transformer_v2 import SwinTransformerV2Stage
 
 from typing import Sequence
 from utils import get_pad2d
 
+class Conv4d(nn.Module):
+    def __init__(self,
+                 in_channels:int,
+                 out_channels:int,
+                 kernel_size:[int, tuple],
+                 stride:[int, tuple] = (1, 1, 1, 1),
+                 padding:[int, tuple] = (0, 0, 0, 0),
+                 dilation:[int, tuple] = (1, 1, 1, 1),
+                 groups:int = 1,
+                 bias=False,
+                 padding_mode:str ='zeros'):
+        super(Conv4d, self).__init__()
+        kernel_size = _quadruple(kernel_size)
+        stride = _quadruple(stride)
+        padding = _quadruple(padding)
+        dilation = _quadruple(dilation)
+
+        if in_channels % groups != 0:
+            raise ValueError('in_channels must be divisible by groups')
+        if out_channels % groups != 0:
+            raise ValueError('out_channels must be divisible by groups')
+        valid_padding_modes = {'zeros'}
+        if padding_mode not in valid_padding_modes:
+            raise ValueError("padding_mode must be one of {}, but got padding_mode='{}'".format(
+                valid_padding_modes, padding_mode))
+
+        # Assertions for constructor arguments
+        assert len(kernel_size) == 4, '4D kernel size expected!'
+        assert len(stride) == 4, '4D Stride size expected!!'
+        assert len(padding) == 4, '4D Padding size expected!!'
+        assert len(dilation) == 4, '4D dilation size expected!'
+        assert groups == 1, 'Groups other than 1 not yet implemented!'
+
+        # Store constructor arguments
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.kernel_size = kernel_size
+        self.stride = stride
+        self.padding = padding
+        self.dilation = dilation
+
+        self.groups = groups
+        self.padding_mode = padding_mode
+
+        # `_reversed_padding_repeated_twice` is the padding to be passed to
+        # `F.pad` if needed (e.g., for non-zero padding types that are
+        # implemented as two ops: padding + conv). `F.pad` accepts paddings in
+        # reverse order than the dimension.
+        # # # # # self._reversed_padding_repeated_twice = _reverse_repeat_tuple(self.padding, 3)
+
+        # Construct weight and bias of 4D convolution
+        self.weight = nn.Parameter(torch.Tensor(out_channels, in_channels // groups, *kernel_size))
+        if bias:
+            self.bias = nn.Parameter(torch.Tensor(out_channels))
+        else:
+            self.bias = None
+        self.reset_parameters()
+
+        # Use a ModuleList to store layers to make the Conv4d layer trainable
+        self.conv3d_layers = torch.nn.ModuleList()
+
+        for i in range(self.kernel_size[0]):
+            # Initialize a Conv3D layer
+            conv3d_layer = nn.Conv3d(in_channels=self.in_channels,
+                                     out_channels=self.out_channels,
+                                     kernel_size=self.kernel_size[1::],
+                                     padding=self.padding[1::],
+                                     dilation=self.dilation[1::],
+                                     stride=self.stride[1::]
+                                     bias=False)
+            conv3d_layer.weight = nn.Parameter(self.weight[:, :, i, :, :])
+
+            # Store the layer
+            self.conv3d_layers.append(conv3d_layer)
+
+        del self.weight
+
+
+    def reset_parameters(self) -> None:
+        nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))
+        if self.bias is not None:
+            fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self.weight)
+            bound = 1 / math.sqrt(fan_in)
+            nn.init.uniform_(self.bias, -bound, bound)
+
+
+    def forward(self, input):
+        # Define shortcut names for dimensions of input and kernel
+        (Batch, _, l_i, d_i, h_i, w_i) = tuple(input.shape)
+        (l_k, d_k, h_k, w_k) = self.kernel_size
+        (l_p, d_p, h_p, w_p) = self.padding
+        (l_d, d_d, h_d, w_d) = self.dilation
+        (l_s, d_s, h_s, w_s) = self.stride
+
+        # Compute the size of the output tensor based on the zero padding
+        l_o = (l_i + 2 * l_p - (l_k) - (l_k-1) * (l_d-1))//l_s + 1
+        d_o = (d_i + 2 * d_p - (d_k) - (d_k-1) * (d_d-1))//d_s + 1
+        h_o = (h_i + 2 * h_p - (h_k) - (h_k-1) * (h_d-1))//h_s + 1
+        w_o = (w_i + 2 * w_p - (w_k) - (w_k-1) * (w_d-1))//w_s + 1
+
+        # Pre-define output tensors
+        out = torch.zeros(Batch, self.out_channels, l_o, d_o, h_o, w_o).to(input.device)
+
+        # Convolve each kernel frame i with each input frame j
+        for i in range(l_k):
+            # Calculate the zero-offset of kernel frame i
+            zero_offset = - l_p + (i * l_d)
+            # Calculate the range of input frame j corresponding to kernel frame i
+            j_start = max(zero_offset % l_s, zero_offset)
+            j_end = min(l_i, l_i + l_p - (l_k-i-1)*l_d)
+            # Convolve each kernel frame i with corresponding input frame j
+            for j in range(j_start, j_end, l_s):
+                # Calculate the output frame
+                out_frame = (j - zero_offset) // l_s
+                # Add results to this output frame
+                out[:, :, out_frame, :, :, :] += self.conv3d_layers[i](input[:, :, j, :, :])
+
+        # Add bias to output
+        if self.bias is not None:
+            out = out + self.bias.view(1, -1, 1, 1, 1, 1)
+
+        return out
 class CubeEmbedding(nn.Module):
     """
     Args:
@@ -15,19 +140,21 @@ class CubeEmbedding(nn.Module):
     """
     def __init__(self, img_size, patch_size, in_chans, embed_dim, norm_layer=nn.LayerNorm):
         super().__init__()
+        layer_reduction = patch_size[0]
+        patch_size = patch_size[1:]
         patches_resolution = [img_size[0] // patch_size[0], img_size[1] // patch_size[1], img_size[2] // patch_size[2]]
 
         self.img_size = img_size
         self.patches_resolution = patches_resolution
         self.embed_dim = embed_dim
-        self.proj = nn.Conv3d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size)
+        self.proj = Conv4d(in_chans, embed_dim//layer_reduction, kernel_size=patch_size, stride=patch_size)
         if norm_layer is not None:
             self.norm = norm_layer(embed_dim)
         else:
             self.norm = None
 
     def forward(self, x: torch.Tensor):
-        B, C, T, Lat, Lon = x.shape
+        B, C, N, T, Lat, Lon = x.shape
         assert T == self.img_size[0] and Lat == self.img_size[1] and Lon == self.img_size[2], \
             f"Input image size ({T}*{Lat}*{Lon}) doesn't match model ({self.img_size[0]}*{self.img_size[1]}*{self.img_size[2]})."
         x = self.proj(x).reshape(B, self.embed_dim, -1).transpose(1, 2)  # B T*Lat*Lon C
@@ -151,31 +278,33 @@ class Xuanming(nn.Module):
         num_heads (int, optional): Number of attention heads.
         window_size (int | tuple[int], optional): Local window size.
     """
-    def __init__(self, img_size=(2, 400, 441), time_patch_size=(2, 4, 4), layer_patch_size=(6, 2, 2), in_chans=19, n_levels=30, out_chans=19,
-                 embed_dim=512, num_groups=32, num_heads=8, window_size=5):
+    def __init__(self, img_size=(2, 400, 441), patch_size=(6, 2, 6, 6), in_chans=19, n_levels=30, out_chans=19,
+                 embed_dim=1536, num_groups=32, num_heads=8, window_size=5):
         super().__init__()
-        input_resolution = int(img_size[1] / time_patch_size[1] / layer_patch_size[1] / 2), int(img_size[2] / time_patch_size[2] / layer_patch_size[2] / 2)
+        input_resolution = int(img_size[1] / patch_size[1] / 2), int(img_size[2] / patch_size[2] / 2)
 
-        self.time_cube_embedding = CubeEmbedding(img_size, time_patch_size, in_chans, embed_dim)
-        self.layer_cube_embedding = CubeEmbedding(img_size, layer_patch_size, embed_dim, embed_dim)
+        self.cube_embedding = CubeEmbedding(img_size, patch_size, in_chans, embed_dim)
 
         self.u_transformer = UTransformer(embed_dim, num_groups, input_resolution, num_heads, window_size, depth=48)
 
-        self.fc = nn.Linear(embed_dim, out_chans * time_patch_size[1] * time_patch_size[2])
+        self.fc = nn.Linear(embed_dim, out_chans * n_levels * patch_size[1] * patch_size[2])
 
-        self.time_patch_size = time_patch_size
-        self.input_resolution = input_resolution
+        self.in_chans = in_chans
+        self.embed_dim = embed_dim
+        self.num_levels = n_levels
         self.out_chans = out_chans
+        self.patch_size = patch_size
+        self.input_resolution = input_resolution
         self.img_size = img_size
 
     def forward(self, x: torch.Tensor):
-        B, _, _, _, _ = x.shape
-        _, patch_lat, patch_lon = self.time_patch_size
+        B, _, _, _, _, _ = x.shape
+        _, patch_lat, patch_lon = self.patch_size
         Lat, Lon = self.input_resolution
         Lat, Lon = Lat * 2, Lon * 2
         x = self.cube_embedding(x).squeeze(2)  # B C Lat Lon
-        x = self.u_transformer(x)
         print(x.shape)
+        x = self.u_transformer(x)
         x = self.fc(x.permute(0, 2, 3, 1))  # B Lat Lon C
         x = x.reshape(B, Lat, Lon, patch_lat, patch_lon, self.out_chans).permute(0, 1, 3, 2, 4, 5)
         # B, lat, patch_lat, lon, patch_lon, C
