@@ -280,7 +280,7 @@ class Xuanming(nn.Module):
         window_size (int | tuple[int], optional): Local window size.
     """
     def __init__(self, img_size=(2, 400, 441), patch_size=(5, 2, 4, 4), in_chans=19, n_levels=30, out_chans=19,
-                 embed_dim=1536, num_groups=32, num_heads=8, window_size=2):
+                 embed_dim=1536, num_groups=32, num_heads=8, window_size=4):
         super().__init__()
         input_resolution = int(img_size[1] / patch_size[2] / 2), int(img_size[2] / patch_size[3] / 2)
 
@@ -323,4 +323,3 @@ if __name__=="__main__":
     model = Xuanming()
     x = torch.randn(2, 19, 30, 2, 400, 441)
     y = model(x)
-    print(y.shape)
