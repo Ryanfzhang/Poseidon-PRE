@@ -71,8 +71,6 @@ for epoch in tqdm(range(args.train_epochs)):
     epoch_time = time.time()
     for i, (input, input_mark, output, output_mark, _) in tqdm(enumerate(train_dloader), total=len(train_dloader), disable=not accelerator.is_local_main_process):
         input, input_mark, output, output_mark = input.float().to(device), input_mark.long().to(device), output.float().to(device), output_mark.long().to(device)
-        print(input_mark.shape)
-        exit()
         input = input.transpose(1,2)
         output = output.transpose(1,2)
 
