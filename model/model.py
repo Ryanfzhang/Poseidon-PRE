@@ -141,14 +141,12 @@ class CubeEmbedding(nn.Module):
     def __init__(self, img_size, patch_size, in_chans, embed_dim, n_levels, norm_layer=nn.LayerNorm):
         super().__init__()
         patches_resolution = [img_size[0] // patch_size[1], img_size[1] // patch_size[2], img_size[2] // patch_size[3]]
-        layer_reduction = n_levels / patch_size[0]
-        print(layer_reduction)
-        print(embed_dim/ layer_reduction)
+        layer_reduction = n_levels // patch_size[0]
 
         self.img_size = img_size
         self.patches_resolution = patches_resolution
         self.embed_dim = embed_dim
-        self.proj = Conv4d(in_chans, embed_dim / layer_reduction, kernel_size=patch_size, stride=patch_size)
+        self.proj = Conv4d(in_chans, embed_dim // layer_reduction, kernel_size=patch_size, stride=patch_size)
         if norm_layer is not None:
             self.norm = norm_layer(embed_dim)
         else:
@@ -289,7 +287,7 @@ class Xuanming(nn.Module):
         super().__init__()
         input_resolution = int(img_size[1] / patch_size[1] / 2), int(img_size[2] / patch_size[2] / 2)
 
-        self.cube_embedding = CubeEmbedding(img_size, patch_size, in_chans, n_levels, embed_dim)
+        self.cube_embedding = CubeEmbedding(img_size, patch_size, in_chans, embed_dim, n_levels)
 
         self.u_transformer = UTransformer(embed_dim, num_groups, input_resolution, num_heads, window_size, depth=48)
 
