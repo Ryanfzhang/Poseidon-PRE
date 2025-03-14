@@ -75,7 +75,7 @@ for epoch in tqdm(range(args.train_epochs)):
         output = output.transpose(1,2)
 
         optimizer.zero_grad()
-        pred = model(input)
+        pred = model(input, input_mark)
         loss = criteria(pred, output - input[:,:,:,1])
         batch_mask = mask.unsqueeze(0).expand(pred.shape[0], -1, -1, -1, -1)
         batch_mask = 1. - batch_mask.transpose(1,2)
@@ -99,7 +99,7 @@ for epoch in tqdm(range(args.train_epochs)):
                 input = input.transpose(1,2)
                 output = output.transpose(1,2)
 
-                pred = model(input)
+                pred = model(input, input_mark)
 
                 # batch_mean = mean.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand(pred.shape[0], -1, -1, -1, -1)
                 # batch_std= std.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand(pred.shape[0], -1, -1, -1, -1)
