@@ -297,7 +297,7 @@ class Xuanming(nn.Module):
 
     def forward(self, x: torch.Tensor):
         B, _, _, _, _, _ = x.shape
-        _, patch_lat, patch_lon = self.patch_size
+        _, _, patch_lat, patch_lon = self.patch_size
         Lat, Lon = self.input_resolution
         Lat, Lon = Lat * 2, Lon * 2
         x = self.cube_embedding(x).squeeze(2)  # B C Lat Lon
