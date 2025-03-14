@@ -304,6 +304,7 @@ class Xuanming(nn.Module):
         Lat, Lon = Lat * 2, Lon * 2
         x = self.cube_embedding(x).squeeze(2)  # B C Lat Lon
         print(x.shape)
+
         x = self.u_transformer(x)
         x = self.fc(x.permute(0, 2, 3, 1))  # B Lat Lon C
         x = x.reshape(B, Lat, Lon, patch_lat, patch_lon, self.out_chans).permute(0, 1, 3, 2, 4, 5)
