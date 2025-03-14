@@ -36,6 +36,10 @@ class NetCDFDataset(data.Dataset):
         self.mean = np.load(os.path.join(self.dataset_path, "mean.npy"))
         self.std = np.load(os.path.join(self.dataset_path, "std.npy"))
         self.mask = np.load(os.path.join(self.dataset_path, "mask.npy"))
+        self.scale = np.ones(19)
+        self.scale[11] = 0.01
+        self.scale[12] = 0.01
+        self.scale[13] = 0.1
 
         self.keys = list(pd.date_range(start=startDate, end=endDate, freq=freq))[1:]
         self.length = len(self.keys) - lead_time - 1
@@ -77,7 +81,7 @@ class NetCDFDataset(data.Dataset):
         year, month, day = start_time_minus_1_str[0:4], start_time_minus_1_str[4:6], start_time_minus_1_str[6:]
         input_minus_1 = np.load(os.path.join(self.dataset_path , "{}/{}-{}-{}.npy".format(year, year, month, day)))
         input_minus_1_mark = np.stack([start_time_minus_1.month - 1, start_time_minus_1.day -1])
-        input = np.stack([input, input_minus_1], axis=3)
+        input = np.stack([input, input_minus_1], axis=2)
         input_mark = np.stack([input_mark, input_minus_1_mark], axis=0)
 
         end_time = key + timedelta(days=self.lead_time)
@@ -92,20 +96,23 @@ class NetCDFDataset(data.Dataset):
         """Return input frames, target frames, and its corresponding time steps."""
         iii = self.keys[index]
         input, input_mark, target, target_mark, periods = self.LoadData(iii)
-        input = self.normalize(input)
-        target = self.normalize(target)
+        # input = self.normalize(input)
+        # target = self.normalize(target)
+        input = input * self.scale[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis]
+        target = target * self.scale[np.newaxis, :, np.newaxis, np.newaxis]
+
         input = np.nan_to_num(input, nan=0.)
         target = np.nan_to_num(target, nan=0.)
 
         return input, input_mark, target, target_mark, periods
     
-    def normalize(self, input):
-        output = (input- self.mean[:, :, np.newaxis, np.newaxis])/(self.std[:, :, np.newaxis, np.newaxis])
-        return output
+    # def normalize(self, input):
+    #     output = (input- self.mean[:, :, np.newaxis, np.newaxis])/(self.std[:, :, np.newaxis, np.newaxis])
+    #     return output
 
-    def denormalize(self, input):
-        output = input * self.mean[:, :, np.newaxis, np.newaxis, np.newaxis] + self.mean[:, :, np.newaxis, np.newaxis, np.newaxis]
-        return output
+    # def denormalize(self, input):
+    #     output = input * self.mean[:, :, np.newaxis, np.newaxis, np.newaxis] + self.mean[:, :, np.newaxis, np.newaxis, np.newaxis]
+    #     return output
 
     def __len__(self):
         return self.length
