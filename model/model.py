@@ -160,6 +160,7 @@ class CubeEmbedding(nn.Module):
         print(x.shape)
         if self.norm is not None:
             x = self.norm(x)
+        print(self.patches_resolution)
         x = x.transpose(1, 2).reshape(B, self.embed_dim, *self.patches_resolution)
         return x
 
