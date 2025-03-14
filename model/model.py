@@ -288,7 +288,7 @@ class Xuanming(nn.Module):
 
         self.u_transformer = UTransformer(embed_dim, num_groups, input_resolution, num_heads, window_size, depth=48)
 
-        self.fc = nn.Linear(embed_dim, out_chans * n_levels * patch_size[1] * patch_size[2])
+        self.fc = nn.Linear(embed_dim, out_chans * n_levels * patch_size[2] * patch_size[3])
 
         self.in_chans = in_chans
         self.embed_dim = embed_dim
@@ -308,14 +308,14 @@ class Xuanming(nn.Module):
 
         x = self.u_transformer(x)
         x = self.fc(x.permute(0, 2, 3, 1))  # B Lat Lon C
-        x = x.reshape(B, Lat, Lon, patch_lat, patch_lon, self.out_chans).permute(0, 1, 3, 2, 4, 5)
-        # B, lat, patch_lat, lon, patch_lon, C
+        x = x.reshape(B, Lat, Lon, patch_lat, patch_lon, self.out_chans*self.num_levels).permute(0, 1, 3, 2, 4, 5) # B, lat, patch_lat, lon, patch_lon, C
 
-        x = x.reshape(B, Lat * patch_lat, Lon * patch_lon, self.out_chans)
+        x = x.reshape(B, Lat * patch_lat, Lon * patch_lon, self.out_chans*self.num_levels)
         x = x.permute(0, 3, 1, 2)  # B C Lat Lon
 
         # bilinear
         x = F.interpolate(x, size=self.img_size[1:], mode="bilinear")
+        x = x.reshape(B, self.out_chans, self.num_levels, *self.img_size[1:])
 
         return x
 
