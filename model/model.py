@@ -142,6 +142,9 @@ class CubeEmbedding(nn.Module):
         super().__init__()
         patches_resolution = [img_size[0] // patch_size[1], img_size[1] // patch_size[2], img_size[2] // patch_size[3]]
         layer_reduction = n_levels//patch_size[0]
+        print(layer_reduction)
+        print(embed_dim)
+        print(embed_dim//layer_reduction)
 
         self.img_size = img_size
         self.patches_resolution = patches_resolution
