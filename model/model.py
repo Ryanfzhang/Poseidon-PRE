@@ -317,6 +317,6 @@ class Xuanming(nn.Module):
 
 if __name__=="__main__":
     model = Xuanming()
-    x = torch.randn(2, 19, 2, 400, 441)
+    x = torch.randn(1, 19, 30, 2, 400, 441)
     y = model(x)
     print(y.shape)
