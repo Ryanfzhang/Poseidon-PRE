@@ -8,7 +8,7 @@ from timm.layers.helpers import to_2tuple
 from timm.models.swin_transformer_v2 import SwinTransformerV2Stage
 
 from typing import Sequence
-from utils import get_pad2d
+from model.utils import get_pad2d
 
 class Conv4d(nn.Module):
     def __init__(self,
