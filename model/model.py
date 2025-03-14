@@ -307,8 +307,8 @@ class Xuanming(nn.Module):
         Lat, Lon = Lat * 2, Lon * 2
         x = self.cube_embedding(x).squeeze(2)  # B C Lat Lon
         position_embedding = self.positional_embeddings.unsqueeze(0).expand(B, -1, -1, -1)
-        month_embedding = self.month_embeddings(x_mark[:, 0]).unsqueeze(-1).unsqueeze(-1).expand(-1, -1, Lat, Lon)
-        day_embedding = self.day_embeddings(x_mark[:, 1]).unsqueeze(-1).unsqueeze(-1).expand(-1, -1, Lat, Lon)
+        month_embedding = self.month_embeddings(x_mark[:, 0]).unsqueeze(-1).unsqueeze(-1).expand(B, -1, Lat, Lon)
+        day_embedding = self.day_embeddings(x_mark[:, 1]).unsqueeze(-1).unsqueeze(-1).expand(B, -1, Lat, Lon)
 
         x = torch.cat([x, position_embedding + month_embedding + day_embedding], dim=1)
 
