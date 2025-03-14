@@ -163,14 +163,14 @@ class Xuanming(nn.Module):
 
         self.fc = nn.Linear(embed_dim, out_chans * time_patch_size[1] * time_patch_size[2])
 
-        self.patch_size = patch_size
+        self.time_patch_size = time_patch_size
         self.input_resolution = input_resolution
         self.out_chans = out_chans
         self.img_size = img_size
 
     def forward(self, x: torch.Tensor):
         B, _, _, _, _ = x.shape
-        _, patch_lat, patch_lon = self.patch_size
+        _, patch_lat, patch_lon = self.time_patch_size
         Lat, Lon = self.input_resolution
         Lat, Lon = Lat * 2, Lon * 2
         x = self.cube_embedding(x).squeeze(2)  # B C Lat Lon
