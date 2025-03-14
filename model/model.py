@@ -282,7 +282,7 @@ class Xuanming(nn.Module):
     def __init__(self, img_size=(2, 400, 441), patch_size=(5, 2, 4, 4), in_chans=19, n_levels=30, out_chans=19,
                  embed_dim=1536, num_groups=32, num_heads=8, window_size=2):
         super().__init__()
-        input_resolution = int(img_size[1] / patch_size[1] / 2), int(img_size[2] / patch_size[2] / 2)
+        input_resolution = int(img_size[1] / patch_size[2] / 2), int(img_size[2] / patch_size[3] / 2)
 
         self.cube_embedding = CubeEmbedding(img_size, patch_size, in_chans, embed_dim, n_levels)
 
