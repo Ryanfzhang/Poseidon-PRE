@@ -279,18 +279,18 @@ class Xuanming(nn.Module):
         window_size (int | tuple[int], optional): Local window size.
     """
     def __init__(self, img_size=(2, 400, 441), patch_size=(5, 2, 4, 4), in_chans=19, n_levels=30, out_chans=19,
-                 embed_dim=768, num_groups=32, num_heads=4, window_size=7):
+                 embed_dim=1536, side_information_dim=256, num_groups=32, num_heads=4, window_size=7):
         super().__init__()
         input_resolution = int(img_size[1] / patch_size[2] / 2), int(img_size[2] / patch_size[3] / 2)
 
         self.cube_embedding = CubeEmbedding(img_size, patch_size, in_chans, embed_dim, n_levels)
-        self.positional_embeddings = nn.Parameter(torch.zeros((128, input_resolution[0] * 2, input_resolution[1] * 2)))
-        self.month_embeddings = nn.Embedding(12, 128)
-        self.day_embeddings = nn.Embedding(31, 128)
+        self.positional_embeddings = nn.Parameter(torch.zeros((side_information_dim, input_resolution[0] * 2, input_resolution[1] * 2)))
+        self.month_embeddings = nn.Embedding(12, side_information_dim)
+        self.day_embeddings = nn.Embedding(31, side_information_dim)
 
-        self.u_transformer = UTransformer(embed_dim + 128, num_groups, input_resolution, num_heads, window_size, depth=12)
+        self.u_transformer = UTransformer(embed_dim + side_information_dim, num_groups, input_resolution, num_heads, window_size, depth=12)
 
-        self.fc = nn.Linear(embed_dim + 128, out_chans * n_levels * patch_size[2] * patch_size[3])
+        self.fc = nn.Linear(embed_dim + side_information_dim, out_chans * n_levels * patch_size[2] * patch_size[3])
 
         self.in_chans = in_chans
         self.embed_dim = embed_dim
@@ -310,7 +310,6 @@ class Xuanming(nn.Module):
         month_embedding = self.month_embeddings(x_mark[:, 0]).unsqueeze(-1).unsqueeze(-1).expand(B, -1, Lat, Lon)
         day_embedding = self.day_embeddings(x_mark[:, 1]).unsqueeze(-1).unsqueeze(-1).expand(B, -1, Lat, Lon)
 
-        print(x.shape, position_embedding.shape, month_embedding.shape, day_embedding.shape)
         x = torch.cat([x, position_embedding + month_embedding + day_embedding], dim=1)
 
         x = self.u_transformer(x)
