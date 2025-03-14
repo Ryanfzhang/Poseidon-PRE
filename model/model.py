@@ -286,8 +286,8 @@ class Xuanming(nn.Module):
 
         self.cube_embedding = CubeEmbedding(img_size, patch_size, in_chans, embed_dim, n_levels)
         self.positional_embeddings = nn.Parameter(torch.zeros((256, input_resolution[0] * 2, input_resolution[1] * 2)))
-        self.month_embeddings = nn.Embedding(256, 12)
-        self.day_embeddings = nn.Embedding(256, 31)
+        self.month_embeddings = nn.Embedding(12, 256)
+        self.day_embeddings = nn.Embedding(31, 256)
 
         self.u_transformer = UTransformer(embed_dim + 3*256, num_groups, input_resolution, num_heads, window_size, depth=48)
 
