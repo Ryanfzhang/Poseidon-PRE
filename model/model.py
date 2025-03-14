@@ -253,6 +253,7 @@ class UTransformer(nn.Module):
         _, _, pad_lat, pad_lon = x.shape
 
         x = x.permute(0, 2, 3, 1)  # B Lat Lon C
+        print(x.shape)
         x = self.layer(x)
         x = x.permute(0, 3, 1, 2)
 
