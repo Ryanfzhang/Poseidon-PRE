@@ -278,8 +278,8 @@ class Xuanming(nn.Module):
         num_heads (int, optional): Number of attention heads.
         window_size (int | tuple[int], optional): Local window size.
     """
-    def __init__(self, img_size=(2, 400, 441), patch_size=(5, 2, 6, 6), in_chans=19, n_levels=30, out_chans=19,
-                 embed_dim=1536, num_groups=32, num_heads=8, window_size=5):
+    def __init__(self, img_size=(2, 400, 441), patch_size=(5, 2, 4, 4), in_chans=19, n_levels=30, out_chans=19,
+                 embed_dim=1536, num_groups=32, num_heads=8, window_size=2):
         super().__init__()
         input_resolution = int(img_size[1] / patch_size[1] / 2), int(img_size[2] / patch_size[2] / 2)
 
