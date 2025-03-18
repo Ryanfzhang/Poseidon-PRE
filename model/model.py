@@ -146,7 +146,7 @@ class CubeEmbedding(nn.Module):
         self.img_size = img_size
         self.patches_resolution = patches_resolution
         self.embed_dim = embed_dim
-        self.proj = nn.Conv3d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size)
+        self.proj = nn.Conv3d(in_chans, embed_dim//patches_resolution[0], kernel_size=patch_size, stride=patch_size)
         if norm_layer is not None:
             self.norm = norm_layer(embed_dim)
         else:
@@ -279,7 +279,7 @@ class Xuanming(nn.Module):
         window_size (int | tuple[int], optional): Local window size.
     """
     def __init__(self, img_size=(30, 400, 441), patch_size=(3, 4, 4), in_chans=19, n_levels=30, out_chans=19,
-                 embed_dim=1216, side_information_dim=256, num_groups=32, num_heads=4, window_size=7):
+                 embed_dim=1280, side_information_dim=256, num_groups=32, num_heads=4, window_size=7):
         super().__init__()
         input_resolution = int(img_size[1] / patch_size[1] / 2), int(img_size[2] / patch_size[2] / 2)
         layer_reduction = n_levels // patch_size[0]
