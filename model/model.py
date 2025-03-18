@@ -321,7 +321,7 @@ class Xuanming(nn.Module):
         x = rearrange(x, 'B Lat patch_lat Lon patch_lon C N -> B C N (Lat patch_lat) (Lon patch_lon)')
 
         # bilinear
-        x = F.interpolate(x, size=self.img_size, mode="bilinear")
+        x = F.interpolate(x, size=self.img_size, mode="trilinear")
         # x = rearrange(x, '(B C) N Lat Lon -> B C N Lat Lon', B=B)
 
         return x
