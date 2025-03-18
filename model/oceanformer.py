@@ -215,7 +215,7 @@ class Xuanming(nn.Module):
         in_img_size=(400,441),
         variables=19,
         level_reduction=3,
-        patch_size=2,
+        patch_size=4,
         hidden_size=1024,
         depth=24,
         num_heads=16,
