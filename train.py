@@ -61,7 +61,9 @@ lr_scheduler = get_cosine_schedule_with_warmup(
 
 train_dloader, test_dloader, model, optimizer, lr_scheduler = accelerator.prepare(train_dloader, test_dloader, model, optimizer, lr_scheduler)
 mask = torch.from_numpy(train_dataset.mask).to(device)
-scale = torch.from_numpy(train_dataset.scale).to(device)
+# scale = torch.from_numpy(train_dataset.scale).to(device)
+mean = torch.from_numpy(train_dataset.mean).to(device)
+std = torch.from_numpy(train_dataset.std).to(device)
 criteria = torch.nn.L1Loss(reduction='none')
 
 best_mse_sst, best_mse_salt = 100, 100
