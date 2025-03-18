@@ -304,7 +304,7 @@ class Xuanming(nn.Module):
 
     def forward(self, x, x_mark, y_mark):
         B, C, N, H, W = x.shape
-        x = x.reshpae(B, C, N//self.level_reduction, self.level_reduction, H, W)
+        x = x.reshape(B, C, N//self.level_reduction, self.level_reduction, H, W)
         x = x.mean(dim=3)
         x = x.reshape(B, -1, H, W)
 
