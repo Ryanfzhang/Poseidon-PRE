@@ -323,7 +323,7 @@ class Xuanming(nn.Module):
         x = self.unpatchify(x)
         
         x = x[:,:,self.pad_size_h:, self.pad_size_w:]
-        print(x)
+        print(x.shape)
         x = F.interpolate(x, size=(N, H, W), mode="trilinear")
         return x
 
