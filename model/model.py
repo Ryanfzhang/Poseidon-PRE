@@ -146,7 +146,7 @@ class CubeEmbedding(nn.Module):
         self.img_size = img_size
         self.patches_resolution = patches_resolution
         self.embed_dim = embed_dim
-        self.proj = nn.Conv3d(in_chans, embed_dim//patches_resolution[0], kernel_size=patch_size, stride=patch_size)
+        self.proj = nn.Conv3d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size)
         if norm_layer is not None:
             self.norm = norm_layer(embed_dim)
         else:
