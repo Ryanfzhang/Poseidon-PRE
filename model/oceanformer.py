@@ -292,7 +292,7 @@ class Xuanming(nn.Module):
         return imgs: (B, V, H, W)
         """
         p = self.patch_size
-        v = len(self.variables)
+        v = self.variables
         h = self.in_img_size[0] // p if h is None else h // p
         w = self.in_img_size[1] // p if w is None else w // p
         assert h * w == x.shape[1]
