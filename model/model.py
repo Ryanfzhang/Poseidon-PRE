@@ -318,10 +318,11 @@ class Xuanming(nn.Module):
         x = x.reshape(B, Lat, Lon, patch_lat, patch_lon, self.out_chans, self.layer_reduction).permute(0, 1, 3, 2, 4, 5, 6) # B, lat, patch_lat, lon, patch_lon, C
 
 
-        x = rearrange(x, 'B Lat patch_lat Lon patch_lon C N -> B C N (Lat patch_lat) (Lon patch_lon)')
+        x = rearrange(x, 'B Lat patch_lat Lon patch_lon C N -> (B C) N (Lat patch_lat) (Lon patch_lon)')
 
         # bilinear
         x = F.interpolate(x, size=self.img_size, mode="bilinear")
+        x = rearrange(x, '(B C) N Lat Lon -> B C N Lat Lon', B=B)
 
         return x
 
