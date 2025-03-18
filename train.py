@@ -101,16 +101,15 @@ for epoch in tqdm(range(args.train_epochs)):
 
                 pred = model(input, input_mark)
 
-                # batch_mean = mean.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand(pred.shape[0], -1, -1, -1, -1)
-                # batch_std= std.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand(pred.shape[0], -1, -1, -1, -1)
-                # batch_mean = batch_mean.transpose(1,2)
-                # batch_std = batch_std.transpose(1,2)
+                batch_mean = mean.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand(pred.shape[0], -1, -1, -1, -1)
+                batch_std= std.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand(pred.shape[0], -1, -1, -1, -1)
+                batch_mean = batch_mean.transpose(1,2)
+                batch_std = batch_std.transpose(1,2)
                 batch_mask = mask.unsqueeze(0).expand(pred.shape[0], -1, -1, -1, -1)
                 batch_mask = 1. - batch_mask.transpose(1,2)
-                batch_scale = scale.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
 
-                pred = pred / batch_scale
-                truth = output / batch_scale
+                pred = pred * batch_std + batch_mean
+                truth = output * batch_std + batch_mean
                 rmse = torch.mean(torch.sqrt(torch.sum(torch.sum((pred - truth)**2 * batch_mask, -1), dim=-1)/(torch.sum(torch.sum(batch_mask, dim=-1), dim=-1) + 1e-10)), dim=0)
                 rmse = accelerator.gather(rmse)
                 rmse = rmse.detach().cpu().numpy()
