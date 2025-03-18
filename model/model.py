@@ -290,8 +290,7 @@ class Xuanming(nn.Module):
         self.day_embeddings = nn.Embedding(31, side_information_dim)
 
         self.u_transformer = UTransformer(embed_dim + side_information_dim, num_groups, input_resolution, num_heads, window_size, depth=12)
-        self.fc = nn.Linear(embed_dim + side_information_dim, out_chans * layer_reduction * patch_size[2] * patch_size[3])
-        self.conv = nn.Conv3d(layer_reduction, n_levels, kernel_size=1)
+        self.fc = nn.Linear(embed_dim + side_information_dim, out_chans * layer_reduction * patch_size[1] * patch_size[2])
         
         self.layer_reduction = layer_reduction
         self.in_chans = in_chans
@@ -303,7 +302,7 @@ class Xuanming(nn.Module):
         self.img_size = img_size
 
     def forward(self, x: torch.Tensor, x_mark: torch.Tensor):
-        B, _, _, _, _, _ = x.shape
+        B, _, _, _, _ = x.shape
         _, _, patch_lat, patch_lon = self.patch_size
         Lat, Lon = self.input_resolution
         Lat, Lon = Lat * 2, Lon * 2
@@ -319,13 +318,10 @@ class Xuanming(nn.Module):
         x = x.reshape(B, Lat, Lon, patch_lat, patch_lon, self.out_chans, self.layer_reduction).permute(0, 1, 3, 2, 4, 5, 6) # B, lat, patch_lat, lon, patch_lon, C
 
 
-        x = rearrange(x, 'B Lat patch_lat Lon patch_lon C N -> B N C (Lat patch_lat) (Lon patch_lon)')
-        x = self.conv(x)
-        x = rearrange(x, 'B N C Lat Lon -> B (C N) Lat Lon')
+        x = rearrange(x, 'B Lat patch_lat Lon patch_lon C N -> B C N (Lat patch_lat) (Lon patch_lon)')
 
         # bilinear
-        x = F.interpolate(x, size=self.img_size[1:], mode="bilinear")
-        x = x.reshape(B, self.out_chans, self.num_levels, *self.img_size[1:])
+        x = F.interpolate(x, size=self.img_size, mode="bilinear")
 
         return x
 
