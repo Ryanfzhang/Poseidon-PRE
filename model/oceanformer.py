@@ -29,7 +29,7 @@ class OceanvariableEmbedding(nn.Module):
 
         # variable tokenization: separate embedding layer for each input variable
         self.token_embeds = nn.ModuleList(
-            [PatchEmbed(None, patch_size, 1, embed_dim) for i in range(len(variables))]
+            [PatchEmbed(None, patch_size, 1, embed_dim) for i in range(variables)]
         )
         self.num_patches = (img_size[0] // patch_size) * (img_size[1] // patch_size)
 
