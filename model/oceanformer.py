@@ -6,7 +6,9 @@ from xformers.ops import memory_efficient_attention, unbind
 from functools import lru_cache
 
 import numpy as np
-
+import os
+import sys
+sys.path.insert(0, os.path.join(os.getcwd(), "../"))
 from model.utils import get_2d_sincos_pos_embed, get_1d_sincos_pos_embed_from_grid, get_pad2d
 
 
