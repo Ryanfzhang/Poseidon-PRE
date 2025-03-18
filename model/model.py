@@ -284,7 +284,7 @@ class Xuanming(nn.Module):
         input_resolution = int(img_size[1] / patch_size[1] / 2), int(img_size[2] / patch_size[2] / 2)
         layer_reduction = n_levels // patch_size[0]
 
-        self.cube_embedding = CubeEmbedding(img_size, patch_size, in_chans, embed_dim, n_levels)
+        self.cube_embedding = CubeEmbedding(img_size, patch_size, in_chans, embed_dim)
         self.positional_embeddings = nn.Parameter(torch.zeros((side_information_dim, input_resolution[0] * 2, input_resolution[1] * 2)))
         self.month_embeddings = nn.Embedding(12, side_information_dim)
         self.day_embeddings = nn.Embedding(31, side_information_dim)
