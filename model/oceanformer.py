@@ -215,6 +215,7 @@ class Xuanming(nn.Module):
         in_img_size=(400,441),
         variables=19,
         level_reduction=3,
+        n_level=30,
         patch_size=4,
         hidden_size=1024,
         depth=24,
@@ -236,10 +237,11 @@ class Xuanming(nn.Module):
         self.variables = variables
         self.patch_size = patch_size
         self.level_reduction = level_reduction
+        variables = variables * (n_level // level_reduction)
         
         # embedding
         self.embedding = OceanvariableEmbedding(
-            variables=variables*self.level_reduction,
+            variables=variables,
             img_size=in_img_size,
             patch_size=patch_size,
             embed_dim=hidden_size,
