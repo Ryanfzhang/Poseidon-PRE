@@ -51,7 +51,7 @@ train_dloader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch
 test_dataset = NetCDFDataset(startDate='20200101', endDate='20221228', lead_time=args.lead_time)
 test_dloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=8, drop_last=True)
 
-model = Xuanming()
+model = Xuanming(depth=4, hidden_size=512)
 optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay, betas=(0.9, 0.995))
 lr_scheduler = get_cosine_schedule_with_warmup(
     optimizer=optimizer,
