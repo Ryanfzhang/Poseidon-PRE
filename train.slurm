@@ -1,12 +1,17 @@
 #! /bin/bash
 #SBATCH --job-name=DiT
 #SBATCH --nodes=1
-#SBATCH --gpus=8
-#SBATCH --time=01:20:00
-#SBATCH -p earthhk
+#SBATCH --gpus-per-node=8
+#SBATCH --time=72:00:00
+#SBATCH -p normal
+#SBATCH --mail-user=mafzhang@ust.hk
+#SBATCH --account=earthhk
+#SBATCH --output=logs/slurm_%j.out
+#SBATCH --error=logs/slurm_%j.err
+
 
 ###############################
 
-accelerate launch --use_deepspeed train.py --dataset_path="/project/earthhk/cmoms/"
+accelerate launch train.py --dataset_path="/project/earthhk/cmoms/"
 
 ###############################

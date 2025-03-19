@@ -46,9 +46,9 @@ check_dir(args.checkpoints)
 accelerator = Accelerator()
 device = accelerator.device
 
-train_dataset = NetCDFDataset(lead_time=args.lead_time)
+train_dataset = NetCDFDataset(dataset_path=args.dataset_path, lead_time=args.lead_time)
 train_dloader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=8)
-test_dataset = NetCDFDataset(startDate='20200101', endDate='20221228', lead_time=args.lead_time)
+test_dataset = NetCDFDataset(startDate='20200101', endDate='20221228', dataset_path=args.dataset_path, lead_time=args.lead_time)
 test_dloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=8, drop_last=True)
 
 model = Xuanming(depth=2, hidden_size=512)
