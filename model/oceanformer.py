@@ -331,6 +331,6 @@ if __name__=="__main__":
     model = Xuanming(depth=2)
     model = model.to("cuda")
     x = torch.randn(1, 19, 30, 400, 441).to("cuda")
-    x_mark = torch.Tensor([[11, 30], [1,28]]).to("cuda")
-    y_mark = torch.Tensor([[11, 30], [1,28]]).to("cuda")
+    x_mark = torch.Tensor([[11, 30]]).to("cuda")
+    y_mark = torch.Tensor([[11, 30]]).to("cuda")
     y = model(x, x_mark, y_mark)
