@@ -337,3 +337,4 @@ if __name__=="__main__":
     x_mark = torch.Tensor([[11, 30]]).to("cuda")
     y_mark = torch.Tensor([[11, 30]]).to("cuda")
     y = model(x, x_mark, y_mark)
+    print(y.shape)
