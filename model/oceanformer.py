@@ -216,10 +216,10 @@ class Xuanming(nn.Module):
         variables=19,
         level_reduction=3,
         n_level=30,
-        patch_size=4,
+        patch_size=8,
         hidden_size=1024,
         depth=24,
-        num_heads=16,
+        num_heads=8,
         mlp_ratio=4.0,
     ):
         super().__init__()

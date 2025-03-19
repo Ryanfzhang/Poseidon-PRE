@@ -13,7 +13,7 @@ import pandas as pd
 
 from utils import check_dir, seed_everything
 from data.dataset import NetCDFDataset
-from model.model import Xuanming
+from model.oceanformer import Xuanming
 
 # os.environ['CUDA_LAUNCH_BLOCKING']="1"
 # os.environ['TORCH_USE_CUDA_DSA'] = "1"
@@ -61,7 +61,6 @@ lr_scheduler = get_cosine_schedule_with_warmup(
 
 train_dloader, test_dloader, model, optimizer, lr_scheduler = accelerator.prepare(train_dloader, test_dloader, model, optimizer, lr_scheduler)
 mask = torch.from_numpy(train_dataset.mask).to(device)
-# scale = torch.from_numpy(train_dataset.scale).to(device)
 mean = torch.from_numpy(train_dataset.mean).to(device)
 std = torch.from_numpy(train_dataset.std).to(device)
 criteria = torch.nn.L1Loss(reduction='none')
@@ -72,12 +71,12 @@ for epoch in tqdm(range(args.train_epochs)):
     model.train()
     epoch_time = time.time()
     for i, (input, input_mark, output, output_mark, _) in tqdm(enumerate(train_dloader), total=len(train_dloader), disable=not accelerator.is_local_main_process):
-        input, input_mark, output, output_mark = input.float().to(device), input_mark.long().to(device), output.float().to(device), output_mark.long().to(device)
+        input, input_mark, output, output_mark = input.float().to(device), input_mark.float().to(device), output.float().to(device), output_mark.float().to(device)
         input = input.transpose(1,2)
         output = output.transpose(1,2)
 
         optimizer.zero_grad()
-        pred = model(input, input_mark)
+        pred = model(input, input_mark, output_mark)
         loss = criteria(pred, output)
         batch_mask = mask.unsqueeze(0).expand(pred.shape[0], -1, -1, -1, -1)
         batch_mask = 1. - batch_mask.transpose(1,2)
@@ -97,11 +96,11 @@ for epoch in tqdm(range(args.train_epochs)):
         with torch.no_grad():
             rmse_list =[]
             for i, (input, input_mark, output, output_mark, _) in tqdm(enumerate(test_dloader), total=len(test_dloader), disable=not accelerator.is_local_main_process):
-                input, input_mark, output, output_mark = input.float().to(device), input_mark.int().to(device), output.float().to(device), output_mark.int().to(device)
+                input, input_mark, output, output_mark = input.float().to(device), input_mark.float().to(device), output.float().to(device), output_mark.float().to(device)
                 input = input.transpose(1,2)
                 output = output.transpose(1,2)
 
-                pred = model(input, input_mark)
+                pred = model(input, input_mark, output_mark)
 
                 batch_mean = mean.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand(pred.shape[0], -1, -1, -1, -1)
                 batch_std= std.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand(pred.shape[0], -1, -1, -1, -1)
