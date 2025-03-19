@@ -104,7 +104,7 @@ class OceanvariableEmbedding(nn.Module):
         embeds = []
 
         for i in range(self.variables):
-            embed_variable = self.token_embeds[i](x[:, i : i + 1]) # B, L, D
+            embed_variable = self.token_embeds[i](x[:, i].unsqueeze(1)) # B, L, D
             embeds.append(embed_variable)
         x = torch.stack(embeds, dim=1)  # B, V, L, D
 
