@@ -51,7 +51,7 @@ train_dloader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch
 test_dataset = NetCDFDataset(startDate='20200101', endDate='20221228', lead_time=args.lead_time)
 test_dloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=8, drop_last=True)
 
-model = Xuanming()
+model = Xuanming(depth=2, hidden_size=512)
 optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay, betas=(0.9, 0.995))
 lr_scheduler = get_cosine_schedule_with_warmup(
     optimizer=optimizer,
@@ -63,6 +63,7 @@ train_dloader, test_dloader, model, optimizer, lr_scheduler = accelerator.prepar
 mask = torch.from_numpy(train_dataset.mask).to(device)
 mean = torch.from_numpy(train_dataset.mean).to(device)
 std = torch.from_numpy(train_dataset.std).to(device)
+coastal = torch.from_numpy(train_dataset.coastal).to(device)
 criteria = torch.nn.L1Loss(reduction='none')
 
 best_mse_sst, best_mse_salt = 100, 100
@@ -80,7 +81,9 @@ for epoch in tqdm(range(args.train_epochs)):
         loss = criteria(pred, output)
         batch_mask = mask.unsqueeze(0).expand(pred.shape[0], -1, -1, -1, -1)
         batch_mask = 1. - batch_mask.transpose(1,2)
-        # batch_std= std.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand(pred.shape[0], -1, -1, -1, -1)
+        batch_coastal = coastal.unsqueeze(0).unsqueeze(0).unsqueeze(0).expand(pred.shape[0], pred.shape[1], pred.shape[2], -1, -1)
+        weight = batch_coastal * 1 + (1 - batch_coastal) * 0.1
+
         loss = (loss* batch_mask).mean()
         accelerator.backward(loss)
 

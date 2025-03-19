@@ -36,6 +36,7 @@ class NetCDFDataset(data.Dataset):
         self.mean = np.load(os.path.join(self.dataset_path, "mean.npy"))
         self.std = np.load(os.path.join(self.dataset_path, "std.npy"))
         self.mask = np.load(os.path.join(self.dataset_path, "mask.npy"))
+        self.coastal = np.load(os.path.join(self.dataset_path, "coastal.npy"))
         # self.scale = np.ones(19)
         # self.scale[11] = 0.01
         # self.scale[12] = 0.01
