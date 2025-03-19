@@ -239,7 +239,7 @@ class Xuanming(nn.Module):
         
         # embedding
         self.embedding = OceanvariableEmbedding(
-            variables=variables,
+            variables=variables*self.level_reduction,
             img_size=in_img_size,
             patch_size=patch_size,
             embed_dim=hidden_size,
@@ -256,7 +256,7 @@ class Xuanming(nn.Module):
         ])
         
         # prediction layer
-        self.head = FinalLayer(hidden_size, patch_size, variables)
+        self.head = FinalLayer(hidden_size, patch_size, variables*self.level_reduction)
 
         self.initialize_weights()
 
@@ -323,7 +323,6 @@ class Xuanming(nn.Module):
         x = self.unpatchify(x)
         
         x = x[:,:,self.pad_size_h:, self.pad_size_w:]
-        print(x.shape)
         x = F.interpolate(x, size=(N, H, W), mode="trilinear")
         return x
 
