@@ -258,7 +258,7 @@ class Xuanming(nn.Module):
         ])
         
         # prediction layer
-        self.head = FinalLayer(hidden_size, patch_size, variables*self.level_reduction)
+        self.head = FinalLayer(hidden_size, patch_size, variables)
 
         self.initialize_weights()
 
