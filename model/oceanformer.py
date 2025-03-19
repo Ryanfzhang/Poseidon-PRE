@@ -235,6 +235,7 @@ class Xuanming(nn.Module):
 
         self.in_img_size = in_img_size
         self.variables = variables
+        self.n_level = n_level
         self.patch_size = patch_size
         self.level_reduction = level_reduction
         variables = variables * (n_level // level_reduction)
@@ -294,7 +295,7 @@ class Xuanming(nn.Module):
         return imgs: (B, V, H, W)
         """
         p = self.patch_size
-        v = self.variables
+        v = self.variables * (self.n_level // self.level_reduction)
         h = self.in_img_size[0] // p if h is None else h // p
         w = self.in_img_size[1] // p if w is None else w // p
         assert h * w == x.shape[1]
