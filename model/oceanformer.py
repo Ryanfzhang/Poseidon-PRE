@@ -328,7 +328,7 @@ class Xuanming(nn.Module):
         return x
 
 if __name__=="__main__":
-    model = Xuanming(depth=2)
+    model = Xuanming(depth=2, level_reduction=10)
     model = model.to("cuda")
     x = torch.randn(1, 19, 30, 400, 441).to("cuda")
     x_mark = torch.Tensor([[11, 30]]).to("cuda")
