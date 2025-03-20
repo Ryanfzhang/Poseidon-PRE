@@ -4,3 +4,4 @@ dataset
 checkpoints
 *.pyc
 *.pth
+logs
