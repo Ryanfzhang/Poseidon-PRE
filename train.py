@@ -82,12 +82,11 @@ for epoch in range(args.train_epochs):
         optimizer.zero_grad()
         pred = model(input, input_mark, output_mark)
         loss = criteria(pred, output)
-        batch_mask = info['mask'].unsqueeze(0)
-        batch_mask = 1. - batch_mask.transpose(1,2)
-        batch_coastal = info['coastal'].unsqueeze(0).unsqueeze(0).unsqueeze(0)
-        weight = batch_coastal * 1 + (1 - batch_coastal) * 0.1
+        mask = 1. - info['mask'].transpose(1,2)
+        coastal = info['coastal'].unsqueeze(1).unsqueeze(1)
+        weight = coastal * 1 + (1 - coastal) * 0.1
 
-        loss = (loss* batch_mask).mean()
+        loss = (loss* mask).mean()
         accelerator.backward(loss)
 
         accelerator.clip_grad_norm_(model.parameters(), 1.0)
@@ -108,16 +107,15 @@ for epoch in range(args.train_epochs):
                 output = output.transpose(1,2)
                 pred = model(input, input_mark, output_mark)
 
-                batch_mean = mean.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
-                batch_std= std.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
-                batch_mean = batch_mean.transpose(1,2)
-                batch_std = batch_std.transpose(1,2)
-                batch_mask = mask.unsqueeze(0)
-                batch_mask = 1. - batch_mask.transpose(1,2)
+                mean = info['mean'].unsqueeze(-1).unsqueeze(-1)
+                std = info['std'].unsqueeze(-1).unsqueeze(-1)
+                mean = mean.transpose(1,2)
+                std = std.transpose(1,2)
+                mask = 1. - info['mask'].transpose(1,2)
 
-                pred = pred * batch_std + batch_mean
-                truth = output * batch_std + batch_mean
-                rmse = torch.mean(torch.sqrt(torch.sum(torch.sum((pred - truth)**2 * batch_mask, -1), dim=-1)/(torch.sum(torch.sum(batch_mask, dim=-1), dim=-1) + 1e-10)), dim=0)
+                pred = pred * std + mean
+                truth = output * std + mean
+                rmse = torch.mean(torch.sqrt(torch.sum(torch.sum((pred - truth)**2 * mask, -1), dim=-1)/(torch.sum(torch.sum(mask, dim=-1), dim=-1) + 1e-10)), dim=0)
                 rmse = accelerator.gather(rmse)
                 rmse = rmse.detach().cpu().numpy()
                 torch.cuda.empty_cache()
