@@ -99,8 +99,15 @@ class NetCDFDataset(data.Dataset):
 
         input = np.nan_to_num(input, nan=0.)
         target = np.nan_to_num(target, nan=0.)
+        info={}
+        info['start_time'] = periods[0]
+        info['end_time'] = periods[1]
+        info['mean'] = self.mean
+        info['std'] = self.std
+        info['mask'] = self.mask
+        info['coastal'] = self.coastal
 
-        return input, input_mark, target, target_mark, periods
+        return input, input_mark, target, target_mark, info
     
     def normalize(self, input):
         output = (input- self.mean[:, :, np.newaxis, np.newaxis])/(self.std[:, :, np.newaxis, np.newaxis])

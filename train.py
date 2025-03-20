@@ -65,30 +65,26 @@ model = accelerator.prepare_model(model)
 optimizer = accelerator.prepare_optimizer(optimizer)
 lr_scheduler = accelerator.prepare_scheduler(lr_scheduler)
 
-mask = torch.from_numpy(train_dataset.mask).to(device)
-mean = torch.from_numpy(train_dataset.mean).to(device)
-std = torch.from_numpy(train_dataset.std).to(device)
-coastal = torch.from_numpy(train_dataset.coastal).to(device)
 criteria = torch.nn.L1Loss(reduction='none')
 
 best_mse_sst, best_mse_salt = 100, 100
-if accelerator.is_main_process:
-    print("Start Training")
+
+accelerator.print("Training start")
+
 for epoch in range(args.train_epochs):
     train_loss = AverageMeter()
     model.train()
     epoch_time = time.time()
-    for i, (input, input_mark, output, output_mark, _) in enumerate(train_dloader):
-        input, input_mark, output, output_mark = input.float().to(device), input_mark.float().to(device), output.float().to(device), output_mark.float().to(device)
+    for i, (input, input_mark, output, output_mark, info) in enumerate(train_dloader):
         input = input.transpose(1,2)
         output = output.transpose(1,2)
 
         optimizer.zero_grad()
         pred = model(input, input_mark, output_mark)
         loss = criteria(pred, output)
-        batch_mask = mask.unsqueeze(0).expand(pred.shape[0], -1, -1, -1, -1)
+        batch_mask = info['mask'].unsqueeze(0)
         batch_mask = 1. - batch_mask.transpose(1,2)
-        batch_coastal = coastal.unsqueeze(0).unsqueeze(0).unsqueeze(0).expand(pred.shape[0], pred.shape[1], pred.shape[2], -1, -1)
+        batch_coastal = info['coastal'].unsqueeze(0).unsqueeze(0).unsqueeze(0)
         weight = batch_coastal * 1 + (1 - batch_coastal) * 0.1
 
         loss = (loss* batch_mask).mean()
@@ -107,18 +103,16 @@ for epoch in range(args.train_epochs):
         with torch.no_grad():
             model.eval()
             rmse_list =[]
-            for i, (input, input_mark, output, output_mark, _) in enumerate(test_dloader):
-                input, input_mark, output, output_mark = input.float().to(device), input_mark.float().to(device), output.float().to(device), output_mark.float().to(device)
+            for i, (input, input_mark, output, output_mark, info) in enumerate(test_dloader):
                 input = input.transpose(1,2)
                 output = output.transpose(1,2)
-
                 pred = model(input, input_mark, output_mark)
 
-                batch_mean = mean.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand(pred.shape[0], -1, -1, -1, -1)
-                batch_std= std.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand(pred.shape[0], -1, -1, -1, -1)
+                batch_mean = mean.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+                batch_std= std.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
                 batch_mean = batch_mean.transpose(1,2)
                 batch_std = batch_std.transpose(1,2)
-                batch_mask = mask.unsqueeze(0).expand(pred.shape[0], -1, -1, -1, -1)
+                batch_mask = mask.unsqueeze(0)
                 batch_mask = 1. - batch_mask.transpose(1,2)
 
                 pred = pred * batch_std + batch_mean
