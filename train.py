@@ -72,7 +72,8 @@ coastal = torch.from_numpy(train_dataset.coastal).to(device)
 criteria = torch.nn.L1Loss(reduction='none')
 
 best_mse_sst, best_mse_salt = 100, 100
-print("Start Training")
+if accelerator.is_main_process:
+    print("Start Training")
 for epoch in range(args.train_epochs):
     train_loss = AverageMeter()
     model.train()
