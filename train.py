@@ -43,8 +43,6 @@ parser.add_argument('--loss', type=str, default='mae', help='loss function')
 args = parser.parse_args()
 
 check_dir(args.checkpoints)
-accelerator = Accelerator()
-device = accelerator.device
 
 train_dataset = NetCDFDataset(dataset_path=args.dataset_path, lead_time=args.lead_time)
 train_dloader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
@@ -59,6 +57,8 @@ lr_scheduler = get_cosine_schedule_with_warmup(
     num_training_steps=len(train_dloader) * args.train_epochs,
 )
 
+accelerator = Accelerator()
+device = accelerator.device
 train_dloader = accelerator.prepare_data_loader(train_dloader)
 test_dloader = accelerator.prepare_data_loader(test_dloader)
 model = accelerator.prepare_model(model)
@@ -75,7 +75,8 @@ for epoch in range(args.train_epochs):
     train_loss = AverageMeter()
     model.train()
     epoch_time = time.time()
-    for i, (input, input_mark, output, output_mark, info) in enumerate(train_dloader):
+    # for i, (input, input_mark, output, output_mark, info) in enumerate(train_dloader):
+    for i, (input, input_mark, output, output_mark, info) in tqdm(enumerate(train_dloader), total=len(train_dloader), disable=(not accelerator.is_local_main_process)):
         input = input.transpose(1,2)
         output = output.transpose(1,2)
 
