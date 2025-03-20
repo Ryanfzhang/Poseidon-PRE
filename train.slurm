@@ -6,6 +6,7 @@
 #SBATCH --mail-user=mafzhang@ust.hk
 #SBATCH --account=earthhk
 #SBATCH --output=logs/%j.out
+#SBATCH --cpus-per-gpu=8
 
 ###############################
 
