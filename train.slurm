@@ -1,11 +1,11 @@
 #! /bin/bash
-#SBATCH --job-name=DiT
+#SBATCH --job-name=OceanForecaster
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=8
 #SBATCH -p normal
 #SBATCH --mail-user=mafzhang@ust.hk
 #SBATCH --account=earthhk
-#SBATCH --output=logs/slurm_%j.out
+#SBATCH --output=logs/%j.out
 
 ###############################
 
