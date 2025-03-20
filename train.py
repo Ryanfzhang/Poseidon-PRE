@@ -71,11 +71,12 @@ coastal = torch.from_numpy(train_dataset.coastal).to(device)
 criteria = torch.nn.L1Loss(reduction='none')
 
 best_mse_sst, best_mse_salt = 100, 100
+print("Start Training")
 for epoch in range(args.train_epochs):
     train_loss = AverageMeter()
     model.train()
     epoch_time = time.time()
-    for i, (input, input_mark, output, output_mark, _) in tqdm(enumerate(train_dloader), total=len(test_dloader), disable=not accelerator.is_local_main_process):
+    for i, (input, input_mark, output, output_mark, _) in enumerate(train_dloader):
         input, input_mark, output, output_mark = input.float().to(device), input_mark.float().to(device), output.float().to(device), output_mark.float().to(device)
         input = input.transpose(1,2)
         output = output.transpose(1,2)
