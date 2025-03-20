@@ -107,7 +107,7 @@ class NetCDFDataset(data.Dataset):
         info['mask'] = self.mask
         info['coastal'] = self.coastal
 
-        return input, input_mark, target, target_mark, info
+        return input, input_mark.astype(np.float32), target, target_mark.astype(np.float32), info
     
     def normalize(self, input):
         output = (input- self.mean[:, :, np.newaxis, np.newaxis])/(self.std[:, :, np.newaxis, np.newaxis])
