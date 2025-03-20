@@ -59,7 +59,8 @@ lr_scheduler = get_cosine_schedule_with_warmup(
     num_training_steps=len(train_dloader) * args.train_epochs,
 )
 
-train_dloader, test_dloader = accelerator.prepare_data_loader(train_dloader, test_dloader) 
+train_dloader = accelerator.prepare_data_loader(train_dloader)
+test_dloader = accelerator.prepare_data_loader(test_dloader)
 model = accelerator.prepare_model(model)
 optimizer = accelerator.prepare_optimizer(optimizer)
 lr_scheduler = accelerator.prepare_scheduler(lr_scheduler)
