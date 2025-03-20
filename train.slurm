@@ -8,7 +8,6 @@
 #SBATCH --account=earthhk
 #SBATCH --output=logs/slurm_%j.out
 #SBATCH --error=logs/slurm_%j.err
-#SBATCH --cpus-per-task 48
 
 ###############################
 
