@@ -104,7 +104,7 @@ class NetCDFDataset(data.Dataset):
         info['end_time'] = periods[1]
         info['mean'] = self.mean
         info['std'] = self.std
-        info['mask'] = self.mask
+        info['mask'] = self.mask[0, 0]
         info['coastal'] = self.coastal
 
         return input, input_mark.astype(np.float32), target, target_mark.astype(np.float32), info

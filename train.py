@@ -83,14 +83,12 @@ for epoch in range(args.train_epochs):
         optimizer.zero_grad()
         pred = model(input, input_mark, output_mark)
         loss = criteria(pred, output)
-        mask = 1. - info['mask'].transpose(1,2)
+        mask = 1. - info['mask'].unsqueeze(1).unsqueeze(1)
         coastal = info['coastal'].unsqueeze(1).unsqueeze(1)
         weight = coastal * 1 + (1 - coastal) * 0.1
 
-        loss = (loss* mask).mean()
+        loss = (weight * loss * mask).mean()
         accelerator.backward(loss)
-
-        accelerator.clip_grad_norm_(model.parameters(), 1.0)
         optimizer.step()
         lr_scheduler.step()
         train_loss.update(loss.detach().cpu().item())
@@ -112,7 +110,7 @@ for epoch in range(args.train_epochs):
                 std = info['std'].unsqueeze(-1).unsqueeze(-1)
                 mean = mean.transpose(1,2)
                 std = std.transpose(1,2)
-                mask = 1. - info['mask'].transpose(1,2)
+                mask = 1. - info['mask'].unsqueeze(1).unsqueeze(1)
 
                 pred = pred * std + mean
                 truth = output * std + mean
