@@ -33,6 +33,10 @@ parser.add_argument('--lead_time', type=int, default=7, help='input sequence len
 parser.add_argument('--levels', type=int, default=30, help='input sequence length')
 parser.add_argument('--drivers', type=int, default=19, help='input sequence length')
 
+# model
+parser.add_argument('--depth', type=int, default=24, help='input sequence length')
+parser.add_argument('--hidden_size', type=int, default=1024, help='input sequence length')
+
 # optimization
 parser.add_argument('--train_epochs', type=int, default=100, help='train epochs')
 parser.add_argument('--batch_size', type=int, default=1, help='batch size of train input data')
@@ -45,11 +49,11 @@ args = parser.parse_args()
 check_dir(args.checkpoints)
 
 train_dataset = NetCDFDataset(dataset_path=args.dataset_path, lead_time=args.lead_time)
-train_dloader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
+train_dloader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=2)
 test_dataset = NetCDFDataset(startDate='20200101', endDate='20221228', dataset_path=args.dataset_path, lead_time=args.lead_time)
-test_dloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, drop_last=True)
+test_dloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, drop_last=True, num_workers=2)
 
-model = Xuanming(depth=2, hidden_size=512)
+model = Xuanming(depth=args.depth, hidden_size=args.hidden_size)
 optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay, betas=(0.9, 0.995))
 lr_scheduler = get_cosine_schedule_with_warmup(
     optimizer=optimizer,
