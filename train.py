@@ -35,7 +35,7 @@ parser.add_argument('--drivers', type=int, default=19, help='input sequence leng
 
 # optimization
 parser.add_argument('--train_epochs', type=int, default=100, help='train epochs')
-parser.add_argument('--batch_size', type=int, default=2, help='batch size of train input data')
+parser.add_argument('--batch_size', type=int, default=1, help='batch size of train input data')
 parser.add_argument('--learning_rate', type=float, default=5e-4, help='optimizer learning rate')
 parser.add_argument('--weight_decay', type=float, default=3e-6, help='optimizer wd')
 parser.add_argument('--loss', type=str, default='mae', help='loss function')
@@ -47,9 +47,9 @@ accelerator = Accelerator()
 device = accelerator.device
 
 train_dataset = NetCDFDataset(dataset_path=args.dataset_path, lead_time=args.lead_time)
-train_dloader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=2)
+train_dloader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
 test_dataset = NetCDFDataset(startDate='20200101', endDate='20221228', dataset_path=args.dataset_path, lead_time=args.lead_time)
-test_dloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, drop_last=True, num_workers=2)
+test_dloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, drop_last=True)
 
 model = Xuanming()
 optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay, betas=(0.9, 0.995))
@@ -59,7 +59,11 @@ lr_scheduler = get_cosine_schedule_with_warmup(
     num_training_steps=len(train_dloader) * args.train_epochs,
 )
 
-train_dloader, test_dloader, model, optimizer, lr_scheduler = accelerator.prepare(train_dloader, test_dloader, model, optimizer, lr_scheduler)
+train_dloader, test_dloader = accelerator.prepare_data_loader(train_dloader, test_dloader) 
+model = accelerator.prepare_model(model)
+optimizer = accelerator.prepare_optimizer(optimizer)
+lr_scheduler = accelerator.prepare_scheduler(lr_scheduler)
+
 mask = torch.from_numpy(train_dataset.mask).to(device)
 mean = torch.from_numpy(train_dataset.mean).to(device)
 std = torch.from_numpy(train_dataset.std).to(device)
@@ -90,13 +94,15 @@ for epoch in range(args.train_epochs):
         accelerator.clip_grad_norm_(model.parameters(), 1.0)
         optimizer.step()
         lr_scheduler.step()
-        optimizer.zero_grad()
         train_loss.update(loss.detach().cpu().item())
         torch.cuda.empty_cache()
 
     accelerator.print("Epoch: {}| Train Loss: {:.4f}, Cost Time: {:.4f}".format(epoch, train_loss.avg, time.time()-epoch_time))
+    train_loss.reset()
+
     if epoch%10==0: 
         with torch.no_grad():
+            model.eval()
             rmse_list =[]
             for i, (input, input_mark, output, output_mark, _) in enumerate(test_dloader):
                 input, input_mark, output, output_mark = input.float().to(device), input_mark.float().to(device), output.float().to(device), output_mark.float().to(device)
