@@ -35,7 +35,7 @@ parser.add_argument('--drivers', type=int, default=19, help='input sequence leng
 
 # optimization
 parser.add_argument('--train_epochs', type=int, default=100, help='train epochs')
-parser.add_argument('--batch_size', type=int, default=2, help='batch size of train input data')
+parser.add_argument('--batch_size', type=int, default=1, help='batch size of train input data')
 parser.add_argument('--learning_rate', type=float, default=5e-4, help='optimizer learning rate')
 parser.add_argument('--weight_decay', type=float, default=3e-6, help='optimizer wd')
 parser.add_argument('--loss', type=str, default='mae', help='loss function')
@@ -51,7 +51,7 @@ train_dloader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch
 test_dataset = NetCDFDataset(startDate='20200101', endDate='20221228', dataset_path=args.dataset_path, lead_time=args.lead_time)
 test_dloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, drop_last=True)
 
-model = Xuanming()
+model = Xuanming(depth=2, hidden_size=512)
 optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay, betas=(0.9, 0.995))
 lr_scheduler = get_cosine_schedule_with_warmup(
     optimizer=optimizer,
