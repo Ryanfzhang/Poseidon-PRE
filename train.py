@@ -47,9 +47,9 @@ accelerator = Accelerator()
 device = accelerator.device
 
 train_dataset = NetCDFDataset(dataset_path=args.dataset_path, lead_time=args.lead_time)
-train_dloader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=24)
+train_dloader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
 test_dataset = NetCDFDataset(startDate='20200101', endDate='20221228', dataset_path=args.dataset_path, lead_time=args.lead_time)
-test_dloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=24, drop_last=True)
+test_dloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, drop_last=True)
 
 model = Xuanming()
 optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay, betas=(0.9, 0.995))
@@ -71,7 +71,7 @@ for epoch in range(args.train_epochs):
     train_loss = AverageMeter()
     model.train()
     epoch_time = time.time()
-    for i, (input, input_mark, output, output_mark, _) in tqdm(enumerate(train_dloader), total=len(train_dloader), disable=not accelerator.is_local_main_process):
+    for i, (input, input_mark, output, output_mark, _) in enumerate(train_dloader):
         input, input_mark, output, output_mark = input.float().to(device), input_mark.float().to(device), output.float().to(device), output_mark.float().to(device)
         input = input.transpose(1,2)
         output = output.transpose(1,2)
