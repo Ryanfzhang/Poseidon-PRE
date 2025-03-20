@@ -1,8 +1,8 @@
 #! /bin/bash
 #SBATCH --job-name=DiT
 #SBATCH --nodes=1
-#SBATCH --gpus-per-node=16
-#SBATCH --time=72:00:00
+#SBATCH --gpus-per-node=8
+#SBATCH --time=96:00:00
 #SBATCH -p normal
 #SBATCH --mail-user=mafzhang@ust.hk
 #SBATCH --account=earthhk
