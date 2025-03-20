@@ -6,7 +6,6 @@
 #SBATCH --mail-user=mafzhang@ust.hk
 #SBATCH --account=earthhk
 #SBATCH --output=logs/slurm_%j.out
-#SBATCH --error=logs/slurm_%j.err
 
 ###############################
 
