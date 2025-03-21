@@ -49,9 +49,9 @@ args = parser.parse_args()
 check_dir(args.checkpoints)
 
 train_dataset = NetCDFDataset(dataset_path=args.dataset_path, lead_time=args.lead_time)
-train_dloader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=8, prefetch_factor=3)
+train_dloader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=8, prefetch_factor=4)
 test_dataset = NetCDFDataset(startDate='20200101', endDate='20221228', dataset_path=args.dataset_path, lead_time=args.lead_time)
-test_dloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, drop_last=True, num_workers=8, prefetch_factor=3)
+test_dloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, drop_last=True, num_workers=8, prefetch_factor=4)
 
 model = Xuanming(depth=args.depth, hidden_size=args.hidden_size)
 optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay, betas=(0.9, 0.995))
