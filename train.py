@@ -91,9 +91,9 @@ for epoch in range(args.train_epochs):
         mask = 1. - info['mask'].unsqueeze(1).unsqueeze(1)
         coastal = info['coastal'].unsqueeze(1).unsqueeze(1)
         weight = info['weight'].unsqueeze(-1).unsqueeze(-1)
-        weight = coastal * weight + (1 - coastal) * weight * args.beta
+        coastal = coastal + (1. - coastal) * args.beta
 
-        loss = (weight * loss * mask).mean()
+        loss = ((weight * (coastal * loss)) * mask).mean()
         accelerator.backward(loss)
         optimizer.step()
         lr_scheduler.step()
