@@ -116,8 +116,8 @@ for epoch in range(args.train_epochs):
                 std = std.transpose(1,2)
                 mask = 1. - info['mask'].unsqueeze(1).unsqueeze(1)
 
-                pred = pred * std + mean
-                truth = output * std + mean
+                # pred = pred * std + mean
+                # truth = output * std + mean
                 rmse = torch.mean(torch.sqrt(torch.sum(torch.sum((pred - truth)**2 * mask, -1), dim=-1)/(torch.sum(torch.sum(mask, dim=-1), dim=-1) + 1e-10)), dim=0)
                 rmse = accelerator.gather(rmse)
                 rmse = rmse.detach().cpu().numpy()
@@ -134,4 +134,5 @@ for epoch in range(args.train_epochs):
             if accelerator.is_main_process:
                 print("RMSE for all level and all drivers:\n")
                 print(rmse)
+                np.save(os.path.join(args.checkpoints, 'rmse.npy'), mean_rmse)
                 torch.save(model.state_dict(), os.path.join(args.checkpoints, 'model_best.pth'))
