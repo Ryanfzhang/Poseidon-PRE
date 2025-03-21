@@ -118,6 +118,8 @@ for epoch in range(args.train_epochs):
 
                 # pred = pred * std + mean
                 # truth = output * std + mean
+                pred = pred
+                truth = output
                 rmse = torch.mean(torch.sqrt(torch.sum(torch.sum((pred - truth)**2 * mask, -1), dim=-1)/(torch.sum(torch.sum(mask, dim=-1), dim=-1) + 1e-10)), dim=0)
                 rmse = accelerator.gather(rmse)
                 rmse = rmse.detach().cpu().numpy()
@@ -136,3 +138,4 @@ for epoch in range(args.train_epochs):
                 print(rmse)
                 np.save(os.path.join(args.checkpoints, 'rmse.npy'), mean_rmse)
                 torch.save(model.state_dict(), os.path.join(args.checkpoints, 'model_best.pth'))
+                exit()
