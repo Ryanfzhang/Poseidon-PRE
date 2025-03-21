@@ -37,6 +37,7 @@ class NetCDFDataset(data.Dataset):
         self.std = np.load(os.path.join(self.dataset_path, "std.npy"))
         self.mask = np.load(os.path.join(self.dataset_path, "mask.npy"))
         self.coastal = np.load(os.path.join(self.dataset_path, "coastal.npy"))
+        self.weight = np.load(os.path.join(self.dataset_path, "weight.npy"))
         # self.scale = np.ones(19)
         # self.scale[11] = 0.01
         # self.scale[12] = 0.01
@@ -106,11 +107,12 @@ class NetCDFDataset(data.Dataset):
         info['std'] = self.std
         info['mask'] = self.mask[0, 0]
         info['coastal'] = self.coastal
+        info['weight'] = self.weight
 
         return input, input_mark.astype(np.float32), target, target_mark.astype(np.float32), info
     
     def normalize(self, input):
-        output = (input- self.mean[:, :, np.newaxis, np.newaxis])/(self.std[:, :, np.newaxis, np.newaxis])
+        output = (input - self.mean[:, :, np.newaxis, np.newaxis])/(self.std[:, :, np.newaxis, np.newaxis])
         return output
 
     def denormalize(self, input):

@@ -36,12 +36,13 @@ parser.add_argument('--drivers', type=int, default=19, help='input sequence leng
 # model
 parser.add_argument('--depth', type=int, default=24, help='input sequence length')
 parser.add_argument('--hidden_size', type=int, default=1024, help='input sequence length')
+parser.add_argument('--beta', type=float, default=0.2, help='input sequence length')
 
 # optimization
 parser.add_argument('--train_epochs', type=int, default=100, help='train epochs')
 parser.add_argument('--batch_size', type=int, default=2, help='batch size of train input data')
-parser.add_argument('--learning_rate', type=float, default=5e-4, help='optimizer learning rate')
-parser.add_argument('--weight_decay', type=float, default=3e-6, help='optimizer wd')
+parser.add_argument('--learning_rate', type=float, default=1e-3, help='optimizer learning rate')
+parser.add_argument('--weight_decay', type=float, default=1e-5, help='optimizer wd')
 parser.add_argument('--loss', type=str, default='mae', help='loss function')
 
 args = parser.parse_args()
@@ -89,7 +90,8 @@ for epoch in range(args.train_epochs):
         loss = criteria(pred, output)
         mask = 1. - info['mask'].unsqueeze(1).unsqueeze(1)
         coastal = info['coastal'].unsqueeze(1).unsqueeze(1)
-        weight = coastal * 1 + (1 - coastal) * 0.1
+        weight = info['weight'].unsqueeze(-1).unsqueeze(-1)
+        weight = coastal * weight + (1 - coastal) * weight * args.beta
 
         loss = (weight * loss * mask).mean()
         accelerator.backward(loss)
@@ -116,10 +118,8 @@ for epoch in range(args.train_epochs):
                 std = std.transpose(1,2)
                 mask = 1. - info['mask'].unsqueeze(1).unsqueeze(1)
 
-                # pred = pred * std + mean
-                # truth = output * std + mean
-                pred = pred
-                truth = output
+                pred = pred * std + mean
+                truth = output * std + mean
                 rmse = torch.mean(torch.sqrt(torch.sum(torch.sum((pred - truth)**2 * mask, -1), dim=-1)/(torch.sum(torch.sum(mask, dim=-1), dim=-1) + 1e-10)), dim=0)
                 rmse = accelerator.gather(rmse)
                 rmse = rmse.detach().cpu().numpy()
@@ -136,6 +136,5 @@ for epoch in range(args.train_epochs):
             if accelerator.is_main_process:
                 print("RMSE for all level and all drivers:\n")
                 print(rmse)
-                np.save(os.path.join(args.checkpoints, 'rmse.npy'), mean_rmse)
                 torch.save(model.state_dict(), os.path.join(args.checkpoints, 'model_best.pth'))
-                exit()
+                rmse.to_csv(os.path.join(args.checkpoints, 'rmse_{}.csv'.format(epoch)))
