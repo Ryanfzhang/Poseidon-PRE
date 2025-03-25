@@ -26,6 +26,8 @@ parser = argparse.ArgumentParser(description='OceanFormer Forecasting')
 parser.add_argument('--freq', type=str, default='d',
                     help='freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h')
 parser.add_argument('--checkpoints', type=str, default='./checkpoints/', help='location of model checkpoints')
+parser.add_argument('--dataset_path', type=str, default='/home/mafzhang/data/cmoms/', help='location of dataset')
+
 # forecasting task
 parser.add_argument('--lead_time', type=int, default=7, help='input sequence length')
 parser.add_argument('--levels', type=int, default=30, help='input sequence length')
@@ -44,7 +46,7 @@ check_dir(args.checkpoints)
 accelerator = Accelerator()
 device = accelerator.device
 
-test_dataset = NetCDFDataset(startDate='20200101', endDate='20221228', lead_time=args.lead_time)
+test_dataset = NetCDFDataset(startDate='20200101', endDate='20221228', lead_time=args.lead_time, dataset_path=args.dataset_path)
 test_dloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=8, drop_last=True)
 
 model = OceanTransformer()
@@ -74,16 +76,14 @@ with torch.no_grad():
         output = output.transpose(1,2)
 
         pred = model(input)
+        mean = info['mean'].unsqueeze(-1).unsqueeze(-1)
+        std = info['std'].unsqueeze(-1).unsqueeze(-1)
+        mean = mean.transpose(1,2)
+        std = std.transpose(1,2)
+        mask = 1. - info['mask'].unsqueeze(1).unsqueeze(1)
 
-        batch_mean = mean.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand(pred.shape[0], -1, -1, -1, -1)
-        batch_std= std.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).expand(pred.shape[0], -1, -1, -1, -1)
-        batch_mean = batch_mean.transpose(1,2)
-        batch_std = batch_std.transpose(1,2)
-        batch_mask = mask.unsqueeze(0).expand(pred.shape[0], -1, -1, -1, -1)
-        batch_mask = 1. - batch_mask.transpose(1,2)
-
-        pred = pred * batch_std + batch_mean
-        truth = output * batch_std + batch_mean
+        pred = pred * std + mean
+        truth = output * std + mean
         rmse = torch.mean((pred - truth)**2 * batch_mask, dim=0, keepdim=True)
         rmse = accelerator.gather(rmse)
         rmse = rmse.detach().cpu().numpy()
