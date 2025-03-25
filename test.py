@@ -37,7 +37,7 @@ parser.add_argument('--hidden_size', type=int, default=1024, help='input sequenc
 
 # optimization
 parser.add_argument('--train_epochs', type=int, default=100, help='train epochs')
-parser.add_argument('--batch_size', type=int, default=4, help='batch size of train input data')
+parser.add_argument('--batch_size', type=int, default=2, help='batch size of train input data')
 parser.add_argument('--learning_rate', type=float, default=5e-4, help='optimizer learning rate')
 parser.add_argument('--weight_decay', type=float, default=3e-6, help='optimizer wd')
 parser.add_argument('--loss', type=str, default='mae', help='loss function')
