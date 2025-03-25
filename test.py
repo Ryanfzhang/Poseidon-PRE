@@ -13,7 +13,7 @@ import pandas as pd
 
 from utils import check_dir, seed_everything
 from data.dataset import NetCDFDataset
-from backbones.model import OceanTransformer
+from model.oceanformer import Xuanming
 
 # os.environ['CUDA_LAUNCH_BLOCKING']="1"
 # os.environ['TORCH_USE_CUDA_DSA'] = "1"
@@ -32,6 +32,8 @@ parser.add_argument('--dataset_path', type=str, default='/home/mafzhang/data/cmo
 parser.add_argument('--lead_time', type=int, default=7, help='input sequence length')
 parser.add_argument('--levels', type=int, default=30, help='input sequence length')
 parser.add_argument('--drivers', type=int, default=19, help='input sequence length')
+parser.add_argument('--depth', type=int, default=24, help='input sequence length')
+parser.add_argument('--hidden_size', type=int, default=1024, help='input sequence length')
 
 # optimization
 parser.add_argument('--train_epochs', type=int, default=100, help='train epochs')
@@ -49,7 +51,7 @@ device = accelerator.device
 test_dataset = NetCDFDataset(startDate='20200101', endDate='20221228', lead_time=args.lead_time, dataset_path=args.dataset_path)
 test_dloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=8, drop_last=True)
 
-model = OceanTransformer()
+model = Xuanming(depth=args.depth, hidden_size=args.hidden_size)
 params = torch.load(os.path.join(args.checkpoints, 'model_best.pth'))
 from collections import OrderedDict
 new_params = OrderedDict()
@@ -67,12 +69,11 @@ best_mse_sst, best_mse_salt = 100, 100
 with torch.no_grad():
     all_rmse = 0
     count = 0
-    for i, (input, input_mark, output, output_mark, _) in tqdm(enumerate(test_dloader), total=len(test_dloader), disable=not accelerator.is_local_main_process):
-        input, input_mark, output, output_mark = input.float().to(device), input_mark.int().to(device), output.float().to(device), output_mark.int().to(device)
+    for i, (input, input_mark, output, output_mark, info) in tqdm(enumerate(test_dloader), total=len(test_dloader), disable=(not accelerator.is_local_main_process)):
         input = input.transpose(1,2)
         output = output.transpose(1,2)
 
-        pred = model(input)
+        pred = model(input, input_mark, output_mark)
         mean = info['mean'].unsqueeze(-1).unsqueeze(-1)
         std = info['std'].unsqueeze(-1).unsqueeze(-1)
         mean = mean.transpose(1,2)
