@@ -11,6 +11,6 @@
 
 ###############################
 
-accelerate launch test.py --dataset_path="/project/earthhk/cmoms/"
+accelerate launch test_p.py --dataset_path="/project/earthhk/cmoms/"
 
 ###############################
