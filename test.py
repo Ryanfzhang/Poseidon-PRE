@@ -46,10 +46,9 @@ args = parser.parse_args()
 
 check_dir(args.checkpoints)
 accelerator = Accelerator()
-device = accelerator.device
 
 test_dataset = NetCDFDataset(startDate='20200101', endDate='20221228', lead_time=args.lead_time, dataset_path=args.dataset_path)
-test_dloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=8, drop_last=True)
+test_dloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, drop_last=True, num_workers=8, prefetch_factor=4)
 
 model = Xuanming(depth=args.depth, hidden_size=args.hidden_size)
 params = torch.load(os.path.join(args.checkpoints, 'model_best.pth'))
@@ -62,13 +61,13 @@ for k, v in params.items():
 model.load_state_dict(new_params)
 del new_params, params
 
-test_dloader, model = accelerator.prepare(test_dloader, model)
+test_dloader = accelerator.prepare_data_loader(test_dloader)
+model = accelerator.prepare_model(model)
 criteria = torch.nn.L1Loss(reduction='none')
 
 best_mse_sst, best_mse_salt = 100, 100
 with torch.no_grad():
     all_rmse = 0
-    count = 0
     for i, (input, input_mark, output, output_mark, info) in tqdm(enumerate(test_dloader), total=len(test_dloader), disable=(not accelerator.is_local_main_process)):
         input = input.transpose(1,2)
         output = output.transpose(1,2)
@@ -82,16 +81,15 @@ with torch.no_grad():
 
         pred = pred * std + mean
         truth = output * std + mean
-        rmse = torch.mean((pred - truth)**2 * batch_mask, dim=0, keepdim=True)
+        rmse = torch.mean((pred - truth)**2 * mask, dim=0, keepdim=True)
         rmse = accelerator.gather(rmse)
         rmse = rmse.detach().cpu().numpy()
         torch.cuda.empty_cache()
 
         all_rmse = all_rmse + rmse
-        count += 1
 
     if accelerator.is_main_process:
-        all_rmse = all_rmse / count
+        all_rmse = all_rmse / len(test_dloader)
         mean_rmse = np.sqrt(np.mean(all_rmse, axis=0))
         np.save(os.path.join(args.checkpoints, 'horizontal_rmse.npy'), mean_rmse)
         print(mean_rmse)
