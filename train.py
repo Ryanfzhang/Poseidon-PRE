@@ -36,12 +36,13 @@ parser.add_argument('--drivers', type=int, default=19, help='input sequence leng
 # model
 parser.add_argument('--depth', type=int, default=24, help='input sequence length')
 parser.add_argument('--hidden_size', type=int, default=1024, help='input sequence length')
+parser.add_argument('--beta', type=float, default=0.2, help='input sequence length')
 
 # optimization
 parser.add_argument('--train_epochs', type=int, default=100, help='train epochs')
-parser.add_argument('--batch_size', type=int, default=1, help='batch size of train input data')
-parser.add_argument('--learning_rate', type=float, default=5e-4, help='optimizer learning rate')
-parser.add_argument('--weight_decay', type=float, default=3e-6, help='optimizer wd')
+parser.add_argument('--batch_size', type=int, default=2, help='batch size of train input data')
+parser.add_argument('--learning_rate', type=float, default=1e-3, help='optimizer learning rate')
+parser.add_argument('--weight_decay', type=float, default=1e-5, help='optimizer wd')
 parser.add_argument('--loss', type=str, default='mae', help='loss function')
 
 args = parser.parse_args()
@@ -49,9 +50,9 @@ args = parser.parse_args()
 check_dir(args.checkpoints)
 
 train_dataset = NetCDFDataset(dataset_path=args.dataset_path, lead_time=args.lead_time)
-train_dloader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=3, prefetch_factor=1)
+train_dloader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=8, prefetch_factor=4)
 test_dataset = NetCDFDataset(startDate='20200101', endDate='20221228', dataset_path=args.dataset_path, lead_time=args.lead_time)
-test_dloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, drop_last=True, num_workers=3, prefetch_factor=1)
+test_dloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, drop_last=True, num_workers=8, prefetch_factor=4)
 
 model = Xuanming(depth=args.depth, hidden_size=args.hidden_size)
 optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay, betas=(0.9, 0.995))
@@ -89,9 +90,10 @@ for epoch in range(args.train_epochs):
         loss = criteria(pred, output)
         mask = 1. - info['mask'].unsqueeze(1).unsqueeze(1)
         coastal = info['coastal'].unsqueeze(1).unsqueeze(1)
-        weight = coastal * 1 + (1 - coastal) * 0.1
+        weight = info['weight'].unsqueeze(-1).unsqueeze(-1)
+        coastal = coastal + (1. - coastal) * args.beta
 
-        loss = (weight * loss * mask).mean()
+        loss = ((weight * (coastal * loss)) * mask).mean()
         accelerator.backward(loss)
         optimizer.step()
         lr_scheduler.step()
@@ -135,3 +137,4 @@ for epoch in range(args.train_epochs):
                 print("RMSE for all level and all drivers:\n")
                 print(rmse)
                 torch.save(model.state_dict(), os.path.join(args.checkpoints, 'model_best.pth'))
+                rmse.to_csv(os.path.join(args.checkpoints, 'rmse_{}.csv'.format(epoch)))
