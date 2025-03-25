@@ -61,9 +61,6 @@ model.load_state_dict(new_params)
 del new_params, params
 
 test_dloader, model = accelerator.prepare(test_dloader, model)
-mask = torch.from_numpy(test_dataset.mask).to(device)
-mean = torch.from_numpy(test_dataset.mean).to(device)
-std = torch.from_numpy(test_dataset.std).to(device)
 criteria = torch.nn.L1Loss(reduction='none')
 
 best_mse_sst, best_mse_salt = 100, 100
