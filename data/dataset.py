@@ -73,6 +73,7 @@ class NetCDFDataset(data.Dataset):
         year, month, day = start_time_str[0:4], start_time_str[4:6], start_time_str[6:]
         input = np.load(os.path.join(self.dataset_path , "{}/{}-{}-{}.npy".format(year, year, month, day)))
         input_mark = np.stack([start_time.month - 1, start_time.day -1])
+        input_climatology = np.load(os.path.join(self.dataset_path , "climatology/{}-{}.npy".format(month, day)))
 
         # start_time_minus_1 = key - timedelta(days=1)
         # start_time_minus_1_str = start_time_minus_1.strftime('%Y%m%d')
@@ -88,8 +89,9 @@ class NetCDFDataset(data.Dataset):
         year, month, day = end_time_str[0:4], end_time_str[4:6], end_time_str[6:]
         target = np.load(os.path.join(self.dataset_path , "{}/{}-{}-{}.npy".format(year, year, month, day)))
         target_mark = np.stack([end_time.month - 1, end_time.day -1])
+        target_climatology = np.load(os.path.join(self.dataset_path , "climatology/{}-{}.npy".format(month, day)))
 
-        return input, input_mark, target, target_mark, (start_time_str, end_time_str)
+        return input, input_mark, target, target_mark, (start_time_str, input_climatology, end_time_str, target_climatology)
 
     def __getitem__(self, index):
         """Return input frames, target frames, and its corresponding time steps."""
@@ -102,12 +104,14 @@ class NetCDFDataset(data.Dataset):
         target = np.nan_to_num(target, nan=0.)
         info={}
         info['start_time'] = periods[0]
-        info['end_time'] = periods[1]
+        info['end_time'] = periods[2]
         info['mean'] = self.mean
         info['std'] = self.std
         info['mask'] = self.mask[0, 0]
         info['coastal'] = self.coastal
         info['weight'] = self.weight
+        info['input_climatology'] = periods[1]
+        info['target_climatology'] = periods[3]
 
         return input, input_mark.astype(np.float32), target, target_mark.astype(np.float32), info
     
