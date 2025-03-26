@@ -48,7 +48,7 @@ check_dir(args.checkpoints)
 accelerator = Accelerator()
 
 test_dataset = NetCDFDataset(startDate='20200101', endDate='20221228', lead_time=args.lead_time, dataset_path=args.dataset_path)
-test_dloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, drop_last=True, num_workers=8, prefetch_factor=4)
+test_dloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, drop_last=True, num_workers=8, prefetch_factor=2)
 
 test_dloader = accelerator.prepare_data_loader(test_dloader)
 criteria = torch.nn.L1Loss(reduction='none')
