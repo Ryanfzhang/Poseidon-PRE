@@ -43,7 +43,7 @@ class NetCDFDataset(data.Dataset):
         # self.scale[12] = 0.01
         # self.scale[13] = 0.1
 
-        self.keys = list(pd.date_range(start=startDate, end=endDate, freq=freq))[1:]
+        self.keys = list(pd.date_range(start=startDate, end=endDate, freq=freq))
         self.length = len(self.keys) - lead_time - 1
 
         random.seed(seed)
