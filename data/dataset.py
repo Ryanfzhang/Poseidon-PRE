@@ -25,6 +25,7 @@ class NetCDFDataset(data.Dataset):
                  endDate = '20191231',
                  freq = 'D',
                  lead_time = 7,
+                 climatology = False, 
                  ):
         """Initialize."""
         self.dataset_path = dataset_path
@@ -38,10 +39,12 @@ class NetCDFDataset(data.Dataset):
         self.mask = np.load(os.path.join(self.dataset_path, "mask.npy"))
         self.coastal = np.load(os.path.join(self.dataset_path, "coastal.npy"))
         self.weight = np.load(os.path.join(self.dataset_path, "weight.npy"))
-        # self.scale = np.ones(19)
-        # self.scale[11] = 0.01
-        # self.scale[12] = 0.01
-        # self.scale[13] = 0.1
+        scale = np.ones(19)
+        scale[11] = 0.01
+        scale[12] = 0.01
+        scale[13] = 0.1
+        self.scale = scale.astype(np.float32)
+        self.climatology = climatology
 
         self.keys = list(pd.date_range(start=startDate, end=endDate, freq=freq))
         self.length = len(self.keys) - lead_time - 1
@@ -70,10 +73,9 @@ class NetCDFDataset(data.Dataset):
         # start_time datetime obj
         start_time = key
         start_time_str = datetime.strftime(key, '%Y%m%d')
-        year, month, day = start_time_str[0:4], start_time_str[4:6], start_time_str[6:]
-        input = np.load(os.path.join(self.dataset_path , "{}/{}-{}-{}.npy".format(year, year, month, day)))
+        s_year, s_month, s_day = start_time_str[0:4], start_time_str[4:6], start_time_str[6:]
+        input = np.load(os.path.join(self.dataset_path , "{}/{}-{}-{}.npy".format(s_year, s_year, s_month, s_day)))
         input_mark = np.stack([start_time.month - 1, start_time.day -1])
-        input_climatology = np.load(os.path.join(self.dataset_path , "climatology/{}-{}.npy".format(month, day)))
 
         # start_time_minus_1 = key - timedelta(days=1)
         # start_time_minus_1_str = start_time_minus_1.strftime('%Y%m%d')
@@ -86,34 +88,46 @@ class NetCDFDataset(data.Dataset):
 
         end_time = key + timedelta(days=self.lead_time)
         end_time_str = end_time.strftime('%Y%m%d')
-        year, month, day = end_time_str[0:4], end_time_str[4:6], end_time_str[6:]
-        target = np.load(os.path.join(self.dataset_path , "{}/{}-{}-{}.npy".format(year, year, month, day)))
+        e_year, e_month, e_day = end_time_str[0:4], end_time_str[4:6], end_time_str[6:]
+        target = np.load(os.path.join(self.dataset_path , "{}/{}-{}-{}.npy".format(e_year, e_year, e_month, e_day)))
         target_mark = np.stack([end_time.month - 1, end_time.day -1])
-        target_climatology = np.load(os.path.join(self.dataset_path , "climatology/{}-{}.npy".format(month, day)))
 
-        return input, input_mark, target, target_mark, (start_time_str, input_climatology, end_time_str, target_climatology)
+        info = {}
+        info['start_time'] = start_time_str
+        info['end_time'] = end_time_str
+        if self.climatology:
+            input_climatology = np.load(os.path.join(self.dataset_path , "climatology/{}-{}.npy".format(month, day)))
+            target_climatology = np.load(os.path.join(self.dataset_path , "climatology/{}-{}.npy".format(month, day)))
+            info['start_climatology'] = input_climatology
+            info['end_climatology'] = target_climatology
+        
+        return input, input_mark, target, target_mark, info
 
     def __getitem__(self, index):
         """Return input frames, target frames, and its corresponding time steps."""
         iii = self.keys[index]
         input, input_mark, target, target_mark, periods = self.LoadData(iii)
-        input = self.normalize(input)
-        target = self.normalize(target)
+        input = self.normalize_by_scale(input)
+        output = self.normalize_by_scale(target)
+        # input = self.normalize(input)
+        # target = self.normalize(target)
 
         input = np.nan_to_num(input, nan=0.)
         target = np.nan_to_num(target, nan=0.)
         info={}
-        info['start_time'] = periods[0]
-        info['end_time'] = periods[2]
+        info['start_time'] = periods['start_time']
+        info['end_time'] = periods['end_time']
         info['mean'] = self.mean
         info['std'] = self.std
         info['mask'] = self.mask[0, 0]
         info['coastal'] = self.coastal
         info['weight'] = self.weight
-        info['input_climatology'] = periods[1]
-        info['target_climatology'] = periods[3]
+        info['scale'] = self.scale
+        if self.climatology:
+            info['input_climatology'] = periods['start_climatology']
+            info['target_climatology'] = periods['end_climatology']
 
-        return input, input_mark.astype(np.float32), target, target_mark.astype(np.float32), info
+        return input.astype(np.float32), input_mark.astype(np.float32), target.astype(np.float32), target_mark.astype(np.float32), info
     
     def normalize(self, input):
         output = (input - self.mean[:, :, np.newaxis, np.newaxis])/(self.std[:, :, np.newaxis, np.newaxis])
@@ -122,6 +136,9 @@ class NetCDFDataset(data.Dataset):
     def denormalize(self, input):
         output = input * self.mean[:, :, np.newaxis, np.newaxis, np.newaxis] + self.mean[:, :, np.newaxis, np.newaxis, np.newaxis]
         return output
+    
+    def normalize_by_scale(self, input):
+        return input * self.scale[np.newaxis, :, np.newaxis, np.newaxis]
 
     def __len__(self):
         return self.length

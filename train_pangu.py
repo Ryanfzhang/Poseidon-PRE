@@ -10,10 +10,11 @@ from timm.utils import AverageMeter
 import torch.nn.functional as F
 from diffusers.optimization import get_cosine_schedule_with_warmup
 import pandas as pd
+from diffusers import UNet2DModel
 
 from utils import check_dir, seed_everything
 from data.dataset import NetCDFDataset
-from model.oceanformer import Xuanming
+from model.pangu import Pangu
 
 # os.environ['CUDA_LAUNCH_BLOCKING']="1"
 # os.environ['TORCH_USE_CUDA_DSA'] = "1"
@@ -25,7 +26,7 @@ parser = argparse.ArgumentParser(description='Ocean Forecasting')
 # data loader
 parser.add_argument('--freq', type=str, default='d',
                     help='freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h')
-parser.add_argument('--checkpoints', type=str, default='./checkpoints/our/', help='location of model checkpoints')
+parser.add_argument('--checkpoints', type=str, default='./checkpoints/pangu/', help='location of model checkpoints')
 parser.add_argument('--dataset_path', type=str, default='/home/mafzhang/data/cmoms/', help='location of dataset')
 
 # forecasting task
@@ -40,7 +41,7 @@ parser.add_argument('--beta', type=float, default=0.2, help='input sequence leng
 
 # optimization
 parser.add_argument('--train_epochs', type=int, default=100, help='train epochs')
-parser.add_argument('--batch_size', type=int, default=2, help='batch size of train input data')
+parser.add_argument('--batch_size', type=int, default=1, help='batch size of train input data')
 parser.add_argument('--learning_rate', type=float, default=1e-3, help='optimizer learning rate')
 parser.add_argument('--weight_decay', type=float, default=1e-5, help='optimizer wd')
 parser.add_argument('--loss', type=str, default='mae', help='loss function')
@@ -49,11 +50,11 @@ args = parser.parse_args()
 
 
 train_dataset = NetCDFDataset(dataset_path=args.dataset_path, lead_time=args.lead_time)
-train_dloader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=8, prefetch_factor=4)
+train_dloader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=8, prefetch_factor=1)
 test_dataset = NetCDFDataset(startDate='20200101', endDate='20221228', dataset_path=args.dataset_path, lead_time=args.lead_time)
-test_dloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, drop_last=True, num_workers=8, prefetch_factor=4)
+test_dloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, drop_last=True, num_workers=8, prefetch_factor=1)
 
-model = Xuanming(depth=args.depth, hidden_size=args.hidden_size)
+model = Pangu()
 optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay, betas=(0.9, 0.995))
 lr_scheduler = get_cosine_schedule_with_warmup(
     optimizer=optimizer,
@@ -75,6 +76,7 @@ best_mse_sst, best_mse_salt = 100, 100
 
 if accelerator.is_main_process:
     check_dir(args.checkpoints)
+
 accelerator.print("Training start")
 
 for epoch in range(args.train_epochs):
@@ -87,15 +89,14 @@ for epoch in range(args.train_epochs):
         output = output.transpose(1,2)
 
         optimizer.zero_grad()
-        pred = model(input, input_mark, output_mark)
+        pred = model(input)
         loss = criteria(pred, output)
         mask = 1. - info['mask'].unsqueeze(1).unsqueeze(1)
         coastal = info['coastal'].unsqueeze(1).unsqueeze(1)
         weight = info['weight'].unsqueeze(-1).unsqueeze(-1)
-        coastal = coastal + (1. - coastal) * args.beta
+        # coastal = coastal + (1. - coastal) * args.beta
 
         loss = ((weight * loss) * mask).mean()
-        # loss = ((weight * (coastal * loss)) * mask).mean()
         accelerator.backward(loss)
         optimizer.step()
         lr_scheduler.step()
@@ -112,7 +113,7 @@ for epoch in range(args.train_epochs):
             for i, (input, input_mark, output, output_mark, info) in enumerate(test_dloader):
                 input = input.transpose(1,2)
                 output = output.transpose(1,2)
-                pred = model(input, input_mark, output_mark)
+                pred = model(input)
 
                 mean = info['mean'].unsqueeze(-1).unsqueeze(-1)
                 std = info['std'].unsqueeze(-1).unsqueeze(-1)
@@ -125,9 +126,6 @@ for epoch in range(args.train_epochs):
                 # truth = output * std + mean
                 pred = pred / (scale + 1e-10)
                 truth = output / (scale + 1e-10)
-
-                # pred = pred * std + mean
-                # truth = output * std + mean
                 rmse = torch.mean(torch.sqrt(torch.sum(torch.sum((pred - truth)**2 * mask, -1), dim=-1)/(torch.sum(torch.sum(mask, dim=-1), dim=-1) + 1e-10)), dim=0)
                 rmse = accelerator.gather(rmse)
                 rmse = rmse.detach().cpu().numpy()
@@ -144,5 +142,5 @@ for epoch in range(args.train_epochs):
             if accelerator.is_main_process:
                 print("RMSE for all level and all drivers:\n")
                 print(rmse)
-                torch.save(model.state_dict(), os.path.join(args.checkpoints, 'model_best.pth'))
+                torch.save(model.state_dict(), os.path.join(args.checkpoints, 'best.pth'))
                 rmse.to_csv(os.path.join(args.checkpoints, 'rmse_{}.csv'.format(epoch)))

@@ -1,8 +1,8 @@
 import sys
 import os
 sys.path.insert(0, os.getcwd())
-from backbones.patch import PatchEmbed2D, PatchEmbed3D, PatchRecovery2D, PatchRecovery3D
-from backbones.layer import *
+from model.patch import PatchEmbed2D, PatchEmbed3D, PatchRecovery2D, PatchRecovery3D
+from model.pangulayer import *
 import torch
 
 class Pangu(nn.Module):
