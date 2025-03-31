@@ -39,10 +39,10 @@ class NetCDFDataset(data.Dataset):
         self.mask = np.load(os.path.join(self.dataset_path, "mask.npy"))
         self.coastal = np.load(os.path.join(self.dataset_path, "coastal.npy"))
         self.weight = np.load(os.path.join(self.dataset_path, "weight.npy"))
-        scale = np.ones(19)
-        scale[11] = 0.01
-        scale[12] = 0.01
-        scale[13] = 0.1
+        scale = 0.1 * np.ones(19)
+        scale[11] = 0.001
+        scale[12] = 0.001
+        scale[13] = 0.01
         self.scale = scale.astype(np.float32)
         self.climatology = climatology
 
