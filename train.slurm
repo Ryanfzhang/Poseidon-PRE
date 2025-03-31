@@ -6,7 +6,7 @@
 #SBATCH --mail-user=mafzhang@ust.hk
 #SBATCH --time=72:00:00
 #SBATCH --account=earthhk
-#SBATCH --output=logs/model_d24_without_normalization.out
+#SBATCH --output=logs/model_d24_without_normalization_scale0.1.out
 #SBATCH --cpus-per-gpu=8
 
 ###############################
