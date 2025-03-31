@@ -42,7 +42,7 @@ parser.add_argument('--beta', type=float, default=0.2, help='input sequence leng
 parser.add_argument('--train_epochs', type=int, default=100, help='train epochs')
 parser.add_argument('--batch_size', type=int, default=2, help='batch size of train input data')
 parser.add_argument('--learning_rate', type=float, default=1e-3, help='optimizer learning rate')
-parser.add_argument('--weight_decay', type=float, default=1e-5, help='optimizer wd')
+parser.add_argument('--weight_decay', type=float, default=5e-5, help='optimizer wd')
 parser.add_argument('--loss', type=str, default='mae', help='loss function')
 
 args = parser.parse_args()
@@ -94,8 +94,8 @@ for epoch in range(args.train_epochs):
         weight = info['weight'].unsqueeze(-1).unsqueeze(-1)
         coastal = coastal + (1. - coastal) * args.beta
 
-        loss = ((weight * loss) * mask).mean()
-        # loss = ((weight * (coastal * loss)) * mask).mean()
+        # loss = ((weight * loss) * mask).mean()
+        loss = ((weight * (coastal * loss)) * mask).mean()
         accelerator.backward(loss)
         optimizer.step()
         lr_scheduler.step()
@@ -119,12 +119,12 @@ for epoch in range(args.train_epochs):
                 mean = mean.transpose(1,2)
                 std = std.transpose(1,2)
                 mask = 1. - info['mask'].unsqueeze(1).unsqueeze(1)
-                scale = info['scale'].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
+                # scale = info['scale'].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
 
-                # pred = pred * std + mean
-                # truth = output * std + mean
-                pred = pred / (scale + 1e-10)
-                truth = output / (scale + 1e-10)
+                pred = pred * std + mean
+                truth = output * std + mean
+                # pred = pred / (scale + 1e-10)
+                # truth = output / (scale + 1e-10)
 
                 # pred = pred * std + mean
                 # truth = output * std + mean

@@ -6,11 +6,11 @@
 #SBATCH --mail-user=mafzhang@ust.hk
 #SBATCH --time=72:00:00
 #SBATCH --account=earthhk
-#SBATCH --output=logs/model_d24_without_normalization_scale0.1.out
+#SBATCH --output=logs/oceanformer_d12_wd5e-5.out
 #SBATCH --cpus-per-gpu=8
 
 ###############################
 
-accelerate launch train.py --dataset_path="/project/earthhk/cmoms/"
+accelerate launch train.py --dataset_path="/project/earthhk/cmoms/" --depth 12 --weight_decay 5e-5
 
 ###############################

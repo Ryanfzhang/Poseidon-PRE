@@ -37,7 +37,7 @@ parser.add_argument('--drivers', type=int, default=19, help='input sequence leng
 # model
 parser.add_argument('--depth', type=int, default=24, help='input sequence length')
 parser.add_argument('--hidden_size', type=int, default=1024, help='input sequence length')
-parser.add_argument('--beta', type=float, default=0.2, help='input sequence length')
+parser.add_argument('--beta', type=float, default=0.05, help='input sequence length')
 
 # optimization
 parser.add_argument('--train_epochs', type=int, default=100, help='train epochs')
@@ -94,9 +94,9 @@ for epoch in range(args.train_epochs):
         mask = 1. - info['mask'].unsqueeze(1).unsqueeze(1)
         coastal = info['coastal'].unsqueeze(1).unsqueeze(1)
         weight = info['weight'].unsqueeze(-1).unsqueeze(-1)
-        # coastal = coastal + (1. - coastal) * args.beta
+        coastal = coastal + (1. - coastal) * args.beta
 
-        loss = ((weight * loss) * mask).mean()
+        loss = ((weight * loss * coastal) * mask).mean()
         accelerator.backward(loss)
         optimizer.step()
         lr_scheduler.step()
@@ -122,10 +122,10 @@ for epoch in range(args.train_epochs):
                 mask = 1. - info['mask'].unsqueeze(1).unsqueeze(1)
                 scale = info['scale'].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
 
-                # pred = pred * std + mean
-                # truth = output * std + mean
-                pred = pred / (scale + 1e-10)
-                truth = output / (scale + 1e-10)
+                pred = pred * std + mean
+                truth = output * std + mean
+                # pred = pred / (scale + 1e-10)
+                # truth = output / (scale + 1e-10)
                 rmse = torch.mean(torch.sqrt(torch.sum(torch.sum((pred - truth)**2 * mask, -1), dim=-1)/(torch.sum(torch.sum(mask, dim=-1), dim=-1) + 1e-10)), dim=0)
                 rmse = accelerator.gather(rmse)
                 rmse = rmse.detach().cpu().numpy()
