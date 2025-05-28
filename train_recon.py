@@ -25,7 +25,7 @@ parser = argparse.ArgumentParser(description='Ocean Forecasting')
 # data loader
 parser.add_argument('--freq', type=str, default='d',
                     help='freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h')
-parser.add_argument('--checkpoints', type=str, default='./checkpoints/our/', help='location of model checkpoints')
+parser.add_argument('--checkpoints', type=str, default='./checkpoints/poseidon/', help='location of model checkpoints')
 parser.add_argument('--dataset_path', type=str, default='/home/mafzhang/data/cmoms/', help='location of dataset')
 
 # forecasting task
