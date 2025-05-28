@@ -13,7 +13,7 @@ import pandas as pd
 
 from utils import check_dir, seed_everything
 from data.dataset import NetCDFDataset
-from model.oceanformer import Xuanming
+from poseidon.poseidon import poseidon_recon
 
 # os.environ['CUDA_LAUNCH_BLOCKING']="1"
 # os.environ['TORCH_USE_CUDA_DSA'] = "1"
@@ -31,6 +31,7 @@ parser.add_argument('--dataset_path', type=str, default='/home/mafzhang/data/cmo
 # forecasting task
 parser.add_argument('--lead_time', type=int, default=7, help='input sequence length')
 parser.add_argument('--levels', type=int, default=30, help='input sequence length')
+parser.add_argument('--patch_size', type=int, default=4, help='input sequence length')
 parser.add_argument('--drivers', type=int, default=19, help='input sequence length')
 
 # model
@@ -53,7 +54,7 @@ train_dloader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch
 test_dataset = NetCDFDataset(startDate='20200101', endDate='20221228', dataset_path=args.dataset_path, lead_time=args.lead_time)
 test_dloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, drop_last=True, num_workers=8, prefetch_factor=4)
 
-model = Xuanming(depth=args.depth, hidden_size=args.hidden_size)
+model = poseidon_recon(patch_size=args.patch_size, depth=args.depth)
 optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay, betas=(0.9, 0.995))
 lr_scheduler = get_cosine_schedule_with_warmup(
     optimizer=optimizer,
@@ -88,7 +89,7 @@ for epoch in range(args.train_epochs):
 
         optimizer.zero_grad()
         pred = model(input, input_mark, output_mark)
-        loss = criteria(pred, output)
+        loss = criteria(pred, input)
         mask = 1. - info['mask'].unsqueeze(1).unsqueeze(1)
         coastal = info['coastal'].unsqueeze(1).unsqueeze(1)
         weight = info['weight'].unsqueeze(-1).unsqueeze(-1)
@@ -119,15 +120,10 @@ for epoch in range(args.train_epochs):
                 mean = mean.transpose(1,2)
                 std = std.transpose(1,2)
                 mask = 1. - info['mask'].unsqueeze(1).unsqueeze(1)
-                # scale = info['scale'].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
 
                 pred = pred * std + mean
                 truth = output * std + mean
-                # pred = pred / (scale + 1e-10)
-                # truth = output / (scale + 1e-10)
 
-                # pred = pred * std + mean
-                # truth = output * std + mean
                 rmse = torch.mean(torch.sqrt(torch.sum(torch.sum((pred - truth)**2 * mask, -1), dim=-1)/(torch.sum(torch.sum(mask, dim=-1), dim=-1) + 1e-10)), dim=0)
                 rmse = accelerator.gather(rmse)
                 rmse = rmse.detach().cpu().numpy()
@@ -142,7 +138,7 @@ for epoch in range(args.train_epochs):
             rmse = pd.DataFrame(mean_rmse)
 
             if accelerator.is_main_process:
-                print("RMSE for all level and all drivers:\n")
+                print("RMSE of all level and all drivers for reconstruct:\n")
                 print(rmse)
                 torch.save(model.state_dict(), os.path.join(args.checkpoints, 'model_best.pth'))
-                rmse.to_csv(os.path.join(args.checkpoints, 'rmse_{}.csv'.format(epoch)))
+                rmse.to_csv(os.path.join(args.checkpoints, 'rmse_recon_{}.csv'.format(epoch)))

@@ -24,7 +24,7 @@ class NetCDFDataset(data.Dataset):
                  startDate = '19880501',
                  endDate = '20191231',
                  freq = 'D',
-                 lead_time = 7,
+                 lead_time = 1,
                  climatology = False, 
                  ):
         """Initialize."""
@@ -70,13 +70,13 @@ class NetCDFDataset(data.Dataset):
         start_time_str = datetime.strftime(key, '%Y%m%d')
         s_year, s_month, s_day = start_time_str[0:4], start_time_str[4:6], start_time_str[6:]
         input = np.load(os.path.join(self.dataset_path , "{}/{}-{}-{}.npy".format(s_year, s_year, s_month, s_day)))
-        input_mark = np.stack([start_time.month - 1, start_time.day -1])
+        input_mark = np.stack([start_time.month, start_time.day])
 
         end_time = key + timedelta(days=self.lead_time)
         end_time_str = end_time.strftime('%Y%m%d')
         e_year, e_month, e_day = end_time_str[0:4], end_time_str[4:6], end_time_str[6:]
         target = np.load(os.path.join(self.dataset_path , "{}/{}-{}-{}.npy".format(e_year, e_year, e_month, e_day)))
-        target_mark = np.stack([end_time.month - 1, end_time.day -1])
+        target_mark = np.stack([end_time.month, end_time.day])
 
         info = {}
         info['start_time'] = start_time_str

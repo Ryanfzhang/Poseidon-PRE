@@ -6,7 +6,7 @@ from timm.layers import trunc_normal_, DropPath
 import sys
 import os
 sys.path.insert(0, os.getcwd())
-from backbones.utils import get_pad3d, get_pad2d, crop2d, crop3d, window_partition, window_reverse, get_shift_window_mask, get_earth_position_index
+from model.utils import get_pad3d, get_pad2d, crop2d, crop3d, window_partition, window_reverse, get_shift_window_mask, get_earth_position_index
 
 class Mlp(nn.Module):
     def __init__(self, in_features, hidden_features=None, out_features=None, act_layer=nn.GELU, drop=0., **kwargs):

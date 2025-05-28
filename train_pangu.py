@@ -120,7 +120,7 @@ for epoch in range(args.train_epochs):
                 mean = mean.transpose(1,2)
                 std = std.transpose(1,2)
                 mask = 1. - info['mask'].unsqueeze(1).unsqueeze(1)
-                scale = info['scale'].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
+                # scale = info['scale'].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
 
                 pred = pred * std + mean
                 truth = output * std + mean
