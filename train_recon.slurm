@@ -10,6 +10,6 @@
 
 ###############################
 
-accelerate launch train_recon.py --dataset_path="/project/earthhk/cmoms/" --depth 12 --weight_decay 5e-5
+accelerate launch train_recon.py --dataset_path="/project/earthhk/cmoms/" --depth 12 --weight_decay 5e-5 --patch_size 8
 
 ###############################
