@@ -9,10 +9,10 @@ import sys
 from einops import rearrange
 sys.path.insert(0, os.path.join(os.getcwd(), "../"))
 
-from encoder import Encoder 
-from decoder import Decoder
-from embedding import FourierExpansion
-from backbone import Block
+from poseidon.encoder import Encoder 
+from poseidon.decoder import Decoder
+from poseidon.embedding import FourierExpansion
+from poseidon.backbone import Block
 
 
 class poseidon_recon(nn.Module):
@@ -70,9 +70,9 @@ class poseidon_recon(nn.Module):
                     nn.init.constant_(module.bias, 0)
         self.apply(_basic_init)
         # Zero-out adaLN modulation layers in blocks:
-        for block in self.blocks:
-            nn.init.constant_(block.adaLN_modulation[-1].weight, 0)
-            nn.init.constant_(block.adaLN_modulation[-1].bias, 0)
+        # for block in self.blocks:
+            # nn.init.constant_(block.adaLN_modulation[-1].weight, 0)
+            # nn.init.constant_(block.adaLN_modulation[-1].bias, 0)
 
         nn.init.constant_(self.decoder.head.adaLN_modulation[-1].weight, 0)
         nn.init.constant_(self.decoder.head.adaLN_modulation[-1].bias, 0)

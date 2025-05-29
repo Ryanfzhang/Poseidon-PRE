@@ -6,7 +6,7 @@
 #SBATCH --mail-user=mafzhang@ust.hk
 #SBATCH --time=72:00:00
 #SBATCH --account=earthhk
-#SBATCH --output=logs/oceanformer_d12_wd5e-5.out
+#SBATCH --output=logs/poseidon_recon.out
 
 ###############################
 
