@@ -4,7 +4,7 @@ import time
 import torch
 import random
 import numpy as np
-from accelerate import Accelerator
+from accelerate import Accelerator, DistributedDataParallelKwargs
 from tqdm import tqdm
 from timm.utils import AverageMeter
 import torch.nn.functional as F
