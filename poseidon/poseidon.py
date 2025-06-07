@@ -173,8 +173,9 @@ class poseidon_pre(nn.Module):
         if self.padding:
             x = self.pad(x)
         
-        x = self.encoder(x) # B, L, D
-        x = rearrange(x, "B L C D ->(B L) C D")
+        x = self.encoder(x)
+        _, L, _, D = x.shape
+        x = rearrange(x, "B L C D ->B (L C) D")
 
         x_time_emb = self.month_expansion(x_mark[:, 0]) + self.day_expansion(x_mark[:, 1])
         y_time_emb = self.month_expansion(y_mark[:, 0]) + self.day_expansion(y_mark[:, 1])
@@ -182,7 +183,7 @@ class poseidon_pre(nn.Module):
         for block in self.blocks:
             x = block(x, x_time_emb)
         
-        x = rearrange(x, "(B L) C D ->B L C D", B=B)
+        x = rearrange(x, "B (L C) D ->B L C D", L=L)
         x = self.decoder(x)
         x = x[:,:,:,self.pad_size_h:, self.pad_size_w:]
         
