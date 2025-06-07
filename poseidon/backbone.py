@@ -65,9 +65,6 @@ class Block(nn.Module):
 
     def forward(self, x, c):
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.adaLN_modulation(c).chunk(6, dim=1)
-        print(x.shape)
-        print(scale_msa.shape)
-        print(gate_msa.shape)
         x = x + gate_msa.unsqueeze(1) * self.attn(self.norm1(x)*(1 + scale_msa.unsqueeze(1)) + shift_msa.unsqueeze(1))
         x = x + gate_mlp.unsqueeze(1) * self.mlp(self.norm2(x)*(1 + scale_mlp.unsqueeze(1)) + shift_mlp.unsqueeze(1))
         return x
