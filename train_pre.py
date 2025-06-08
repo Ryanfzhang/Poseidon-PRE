@@ -99,6 +99,7 @@ for epoch in range(args.train_epochs):
         # loss = ((weight * loss) * mask).mean()
         loss = ((weight * (coastal * loss)) * mask).mean()
         accelerator.backward(loss)
+        accelerator.clip_grad_norm_(model.parameters(), 1)
         optimizer.step()
         lr_scheduler.step()
         train_loss.update(loss.detach().cpu().item())
