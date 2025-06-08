@@ -55,7 +55,7 @@ test_dataset = NetCDFDataset(startDate='20200101', endDate='20221228', dataset_p
 test_dloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, drop_last=True, num_workers=8, prefetch_factor=4)
 
 model = poseidon_pre(patch_size=args.patch_size, depth=args.depth)
-# model.load_state_dict(torch.load(os.path.join(args.checkpoints, "model_best.pth")), strict=False)
+model.load_state_dict(torch.load(os.path.join(args.checkpoints, "model_best.pth")), strict=False)
 optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay, betas=(0.9, 0.995))
 lr_scheduler = get_cosine_schedule_with_warmup(
     optimizer=optimizer,
@@ -90,7 +90,7 @@ for epoch in range(args.train_epochs):
 
         optimizer.zero_grad()
         pred = model(input, input_mark, output_mark)
-        loss = criteria(pred, input)
+        loss = criteria(pred, output)
         mask = 1. - info['mask'].unsqueeze(1).unsqueeze(1)
         coastal = info['coastal'].unsqueeze(1).unsqueeze(1)
         weight = info['weight'].unsqueeze(-1).unsqueeze(-1)
