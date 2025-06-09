@@ -66,8 +66,9 @@ class Encoder(nn.Module):
         self.pos_embed.data.copy_(torch.from_numpy(pos_embed).float().unsqueeze(0))
 
         # token embedding layer
-        w = self.token_embeds.proj.weight.data
-        trunc_normal_(w.view([w.shape[0], -1]), std=0.02)
+        for i in range(self.levels):
+            w = self.token_embeds[i].proj.weight.data
+            trunc_normal_(w.view([w.shape[0], -1]), std=0.02)
 
         # initialize nn.Linear and nn.LayerNorm
         self.apply(self._init_weights)

@@ -65,6 +65,11 @@ class Decoder(nn.Module):
         elif isinstance(m, nn.LayerNorm):
             nn.init.constant_(m.bias, 0)
             nn.init.constant_(m.weight, 1.0)
+        for i in range(self.levels):
+            nn.init.constant_(self.head[i].adaLN_modulation[-1].weight, 0)
+            nn.init.constant_(self.head[i].adaLN_modulation[-1].bias, 0)
+            nn.init.constant_(self.head[i].linear.weight, 0)
+            nn.init.constant_(self.head[i].linear.bias, 0)
 
     def deaggregate_levels(
         self,
@@ -131,9 +136,9 @@ class Decoder(nn.Module):
             x_list.append(self.head[i](x[:,i], y_time_emb))
 
         x = torch.stack(x_list, dim=1)
-        x = rearrange(x, "B L C D-> B (L C) D")
+        x = rearrange(x, "B L C D-> (B L) C D")
         x = self.unpatchify(x)
-        x = rearrange(x, "B (L C) H W-> B C L H W", L=self.levels)
+        x = rearrange(x, "(B L) C H W-> B C L H W", L=self.levels)
 
         return x
 

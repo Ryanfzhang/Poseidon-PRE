@@ -69,15 +69,6 @@ class poseidon_recon(nn.Module):
                 if module.bias is not None:
                     nn.init.constant_(module.bias, 0)
         self.apply(_basic_init)
-        # Zero-out adaLN modulation layers in blocks:
-        # for block in self.blocks:
-            # nn.init.constant_(block.adaLN_modulation[-1].weight, 0)
-            # nn.init.constant_(block.adaLN_modulation[-1].bias, 0)
-
-        nn.init.constant_(self.decoder.head.adaLN_modulation[-1].weight, 0)
-        nn.init.constant_(self.decoder.head.adaLN_modulation[-1].bias, 0)
-        nn.init.constant_(self.decoder.head.linear.weight, 0)
-        nn.init.constant_(self.decoder.head.linear.bias, 0)
 
     def forward(self, x, x_mark, y_mark):
         B, C, N, H, W = x.shape
