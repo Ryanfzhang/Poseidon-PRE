@@ -70,7 +70,7 @@ model = accelerator.prepare_model(model)
 optimizer = accelerator.prepare_optimizer(optimizer)
 lr_scheduler = accelerator.prepare_scheduler(lr_scheduler)
 
-criteria = torch.nn.L1Loss(reduction='none')
+criteria = torch.nn.MSELoss(reduction='none')
 
 best_mse_sst, best_mse_salt = 100, 100
 
@@ -140,5 +140,5 @@ for epoch in range(args.train_epochs):
             if accelerator.is_main_process:
                 print("RMSE of all level and all drivers for reconstruct:\n")
                 print(rmse)
-                torch.save(model.state_dict(), os.path.join(args.checkpoints, 'model_best.pth'))
+                torch.save(model.state_dict(), os.path.join(args.checkpoints, 'model_best_mse.pth'))
                 rmse.to_csv(os.path.join(args.checkpoints, 'rmse_recon_{}.csv'.format(epoch)))
