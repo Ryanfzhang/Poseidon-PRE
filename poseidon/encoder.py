@@ -30,7 +30,6 @@ class Encoder(nn.Module):
         self.patch_size = patch_size
         self.variables = variables
 
-        # variable tokenization: separate embedding layer for each input variable
         self.token_embeds = PatchEmbed(None, patch_size, variables, embed_dim)
         self.num_patches = (img_size[0] // patch_size) * (img_size[1] // patch_size)
 
@@ -78,13 +77,6 @@ class Encoder(nn.Module):
         elif isinstance(m, nn.LayerNorm):
             nn.init.constant_(m.bias, 0)
             nn.init.constant_(m.weight, 1.0)
-
-    def create_var_embedding(self, dim):
-        var_embed = nn.Parameter(torch.zeros(1, self.variables, dim), requires_grad=True)
-        return var_embed
-
-    def get_var_emb(self):
-        return self.channel_embed
 
     def aggregate_levels(self, x: torch.Tensor) -> torch.Tensor:
         """Aggregate pressure level information.

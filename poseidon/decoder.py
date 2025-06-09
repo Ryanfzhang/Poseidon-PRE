@@ -53,7 +53,7 @@ class Decoder(nn.Module):
         )
         
         self.level_expansion = FourierExpansion(1, self.levels, d=embed_dim)
-        self.head = FinalLayer(embed_dim, patch_size, variables)
+        self.head = FinalLayer(embed_dim, patch_size, levels * variables)
 
         self.apply(self._init_weights)
     
@@ -128,9 +128,9 @@ class Decoder(nn.Module):
 
         x = self.head(x, y_time_emb)
 
-        x = rearrange(x, "B L C D-> (B L) C D")
+        x = rearrange(x, "B L C D-> B (L C) D")
         x = self.unpatchify(x)
-        x = rearrange(x, "(B L) C H W-> B C L H W", B=B)
+        x = rearrange(x, "B (L C) H W-> B C L H W", L=self.levels)
 
         return x
 

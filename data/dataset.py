@@ -113,7 +113,7 @@ class NetCDFDataset(data.Dataset):
         return input.astype(np.float32), input_mark.astype(np.float32), target.astype(np.float32), target_mark.astype(np.float32), info
     
     def normalize(self, input):
-        output = (input - self.mean[:, :, np.newaxis, np.newaxis])/(self.std[:, :, np.newaxis, np.newaxis])
+        output = (input - self.mean[:, :, np.newaxis, np.newaxis])/(self.std[:, :, np.newaxis, np.newaxis]+1e-10)
         return output
 
     def denormalize(self, input):
@@ -129,4 +129,4 @@ class NetCDFDataset(data.Dataset):
 
 if __name__=="__main__":
     dataset = NetCDFDataset()
-    print(dataset.__getitem__(dataset.__len__()-1)[0][0][13])
+    print(dataset.__getitem__(dataset.__len__()-1)[0].shape)

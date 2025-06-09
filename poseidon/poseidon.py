@@ -95,7 +95,7 @@ class poseidon_recon(nn.Module):
             # x = block(x, x_time_emb)
         
         x = rearrange(x, "(B L) C D ->B L C D", B=B)
-        x = self.decoder(x)
+        x = self.decoder(x, x_time_emb)
         x = x[:,:,:,self.pad_size_h:, self.pad_size_w:]
         
         return x
@@ -184,7 +184,7 @@ class poseidon_pre(nn.Module):
             x = block(x, x_time_emb)
         
         x = rearrange(x, "B (L C) D ->B L C D", L=L)
-        x = self.decoder(x)
+        x = self.decoder(x, y_time_emb)
         x = x[:,:,:,self.pad_size_h:, self.pad_size_w:]
         
         return x
