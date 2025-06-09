@@ -90,7 +90,7 @@ for epoch in range(args.train_epochs):
 
         optimizer.zero_grad()
         pred = model(input, input_mark, output_mark)
-        loss = criteria(pred, output)
+        loss = torch.sqrt(criteria(pred, output))
         mask = 1. - info['mask'].unsqueeze(1).unsqueeze(1)
         coastal = info['coastal'].unsqueeze(1).unsqueeze(1)
         weight = info['weight'].unsqueeze(-1).unsqueeze(-1)

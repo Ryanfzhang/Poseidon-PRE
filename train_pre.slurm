@@ -1,5 +1,5 @@
 #! /bin/bash
-#SBATCH --job-name=Poseidon_recon
+#SBATCH --job-name=Poseidon_pre
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=8
 #SBATCH -p normal
