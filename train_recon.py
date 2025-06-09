@@ -75,6 +75,7 @@ best_mse_sst, best_mse_salt = 100, 100
 if accelerator.is_main_process:
     check_dir(args.checkpoints)
 accelerator.print("Training start")
+criteria = torch.nn.L1Loss(reduction='none')
 
 for epoch in range(args.train_epochs):
     train_loss = AverageMeter()
@@ -87,14 +88,16 @@ for epoch in range(args.train_epochs):
 
         optimizer.zero_grad()
         pred = model(input, input_mark, output_mark)
-        loss = (pred - input)**2
+        loss = criteria(pred, output)
         mask = 1. - info['mask'].unsqueeze(1).unsqueeze(1)
         coastal = info['coastal'].unsqueeze(1).unsqueeze(1)
         weight = info['weight'].unsqueeze(-1).unsqueeze(-1)
         coastal = coastal + (1. - coastal) * args.beta
 
         # loss = ((weight * loss) * mask).mean()
-        loss = torch.mean(torch.sqrt(((weight * (coastal * loss)) * mask).mean([1,2,3,4])))
+        # loss = torch.mean(torch.sqrt(((weight * (coastal * loss)) * mask).mean([1,2,3,4])))
+        loss = ((weight * (coastal * loss)) * mask).mean()
+        loss = criteria()
         accelerator.backward(loss)
         optimizer.step()
         lr_scheduler.step()

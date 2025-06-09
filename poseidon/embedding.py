@@ -40,6 +40,12 @@ class FourierExpansion(nn.Module):
             base=10,
         ), requires_grad=False)
 
+        self.transform = nn.Sequential(
+            nn.Linear(d, d, bias=True),
+            nn.SiLU(),
+            nn.Linear(d, d, bias=True),
+        )
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Perform the expansion.
 
@@ -73,8 +79,9 @@ class FourierExpansion(nn.Module):
         
         prod = torch.einsum("...i,j->...ij", x, 2 * np.pi / self.wavelengths)
         encoding = torch.cat((torch.sin(prod), torch.cos(prod)), dim=-1)
+        encoding = self.transform(encoding.float())
 
-        return encoding.float()  # Cast to `float32` to avoid incompatibilities.
+        return encoding
 
 
 if __name__=="__main__":
