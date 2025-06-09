@@ -140,5 +140,5 @@ for epoch in range(args.train_epochs):
             if accelerator.is_main_process:
                 print("RMSE of all level and all drivers for reconstruct:\n")
                 print(rmse)
-                torch.save(model.state_dict(), os.path.join(args.checkpoints, 'model_best_mse.pth'))
+                torch.save(model.state_dict(), os.path.join(args.checkpoints, 'model_best_rmse.pth'))
                 rmse.to_csv(os.path.join(args.checkpoints, 'rmse_recon_{}.csv'.format(epoch)))
