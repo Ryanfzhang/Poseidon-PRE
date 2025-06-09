@@ -42,7 +42,7 @@ parser.add_argument('--beta', type=float, default=0.2, help='input sequence leng
 # optimization
 parser.add_argument('--train_epochs', type=int, default=100, help='train epochs')
 parser.add_argument('--batch_size', type=int, default=2, help='batch size of train input data')
-parser.add_argument('--learning_rate', type=float, default=1e-3, help='optimizer learning rate')
+parser.add_argument('--learning_rate', type=float, default=1e-4, help='optimizer learning rate')
 parser.add_argument('--weight_decay', type=float, default=5e-5, help='optimizer wd')
 parser.add_argument('--loss', type=str, default='mae', help='loss function')
 
@@ -56,7 +56,7 @@ test_dloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_s
 
 model = poseidon_pre(patch_size=args.patch_size, depth=args.depth)
 model.load_state_dict(torch.load(os.path.join(args.checkpoints, "model_best.pth")), strict=False)
-optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay, betas=(0.9, 0.995))
+optimizer = torch.optim.Adam(model.get_learnable_parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)
 lr_scheduler = get_cosine_schedule_with_warmup(
     optimizer=optimizer,
     num_warmup_steps= 1000, 
@@ -71,7 +71,7 @@ model = accelerator.prepare_model(model)
 optimizer = accelerator.prepare_optimizer(optimizer)
 lr_scheduler = accelerator.prepare_scheduler(lr_scheduler)
 
-criteria = torch.nn.L1Loss(reduction='none')
+criteria = torch.nn.MSELoss(reduction='none')
 
 best_mse_sst, best_mse_salt = 100, 100
 
