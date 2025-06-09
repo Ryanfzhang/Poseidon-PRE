@@ -6,7 +6,7 @@
 #SBATCH --mail-user=mafzhang@ust.hk
 #SBATCH --time=72:00:00
 #SBATCH --account=earthhk
-#SBATCH --output=logs/poseidon_recon_mse.out
+#SBATCH --output=logs/poseidon_recon_rmse.out
 
 ###############################
 

@@ -20,6 +20,7 @@ class Encoder(nn.Module):
         img_size,
         variables=19,
         latent_levels=8,
+        levels=30,
         patch_size=2,
         embed_dim=1024,
         num_heads=16,
@@ -30,7 +31,9 @@ class Encoder(nn.Module):
         self.patch_size = patch_size
         self.variables = variables
 
-        self.token_embeds = PatchEmbed(None, patch_size, variables, embed_dim)
+        self.token_embeds = nn.ModuleList([PatchEmbed(None, patch_size, variables, embed_dim) for i in range(levels)])
+        self.levels = levels
+        self.latent_levels = latent_levels
         self.num_patches = (img_size[0] // patch_size) * (img_size[1] // patch_size)
 
         # variable aggregation: a learnable query and a single-layer cross attention
@@ -106,14 +109,18 @@ class Encoder(nn.Module):
     def forward(self, x: torch.Tensor):
 
         B, C, L, H, W = x.shape
-        x = rearrange(x, "B C L H W -> (B L) C H W")
+        x = rearrange(x, "B C L H W -> B L C H W")
 
-        embed_variable = self.token_embeds(x) # (B L), C, D
-        # add variable embedding
+        embed_variable_list = []
+        for i in range(self.levels):
+            embed_variable_list.append(self.token_embeds[i](x[:,i]))
+
+        embed_variable = torch.stack(embed_variable_list, dim=1)
+        embed_variable = rearrange(embed_variable, "B L C D-> (B L) C D")
+
         x = embed_variable + self.pos_embed
         x = rearrange(x, "(B L) C D-> B L C D", B=B)
 
-        # level aggregation
         x = self.aggregate_levels(x)  
         x = self.dropout(x)
 

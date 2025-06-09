@@ -53,7 +53,7 @@ class Decoder(nn.Module):
         )
         
         self.level_expansion = FourierExpansion(1, self.levels, d=embed_dim)
-        self.head = FinalLayer(embed_dim, patch_size, levels * variables)
+        self.head = nn.ModuleList([FinalLayer(embed_dim, patch_size, variables) for i in range(self.levels)])
 
         self.apply(self._init_weights)
     
@@ -126,8 +126,11 @@ class Decoder(nn.Module):
         B, L, C, D = x.shape
         x = self.deaggregate_levels(x)  
 
-        x = self.head(x, y_time_emb)
+        x_list = []
+        for i in range(self.levels):
+            x_list.append(self.head[i](x[:,i], y_time_emb))
 
+        x = torch.stack(x_list, dim=1)
         x = rearrange(x, "B L C D-> B (L C) D")
         x = self.unpatchify(x)
         x = rearrange(x, "B (L C) H W-> B C L H W", L=self.levels)
