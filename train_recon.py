@@ -100,8 +100,9 @@ for epoch in range(args.train_epochs):
         lr_scheduler.step()
         train_loss.update(loss.detach().cpu().item())
         torch.cuda.empty_cache()
+        if i%100==0:
+            accelerator.print("Epoch: {}, Iteration: {} | Train Loss: {:.4f}, Cost Time: {:.4f}".format(epoch, i, train_loss.avg, time.time()-epoch_time))
 
-    accelerator.print("Epoch: {}| Train Loss: {:.4f}, Cost Time: {:.4f}".format(epoch, train_loss.avg, time.time()-epoch_time))
     train_loss.reset()
 
     if epoch%10==0: 
