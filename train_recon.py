@@ -97,7 +97,6 @@ for epoch in range(args.train_epochs):
         # loss = ((weight * loss) * mask).mean()
         loss = torch.mean(torch.sqrt(((weight * (coastal * loss)) * mask).mean([1,2,3,4])))
         # loss = ((weight * (coastal * loss)) * mask).mean()
-        loss = criteria()
         accelerator.backward(loss)
         optimizer.step()
         lr_scheduler.step()
