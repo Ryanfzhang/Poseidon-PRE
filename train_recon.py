@@ -62,7 +62,7 @@ lr_scheduler = get_cosine_schedule_with_warmup(
     num_training_steps=len(train_dloader) * args.train_epochs,
 )
 
-accelerator = Accelerator(kwargs_handlers=[DistributedDataParallelKwargs(find_unused_parameters=True)])
+accelerator = Accelerator()
 device = accelerator.device
 train_dloader = accelerator.prepare_data_loader(train_dloader)
 test_dloader = accelerator.prepare_data_loader(test_dloader)
