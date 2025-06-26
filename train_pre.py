@@ -55,7 +55,7 @@ test_dataset = NetCDFDataset(startDate='20200101', endDate='20221228', dataset_p
 test_dloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, drop_last=True, num_workers=8, prefetch_factor=4)
 
 model = poseidon_pre(patch_size=args.patch_size, depth=args.depth)
-model.load_state_dict(torch.load(os.path.join(args.checkpoints, "model_best.pth")), strict=False)
+# model.load_state_dict(torch.load(os.path.join(args.checkpoints, "model_best.pth")), strict=False)
 optimizer = torch.optim.Adam(model.get_learnable_parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)
 lr_scheduler = get_cosine_schedule_with_warmup(
     optimizer=optimizer,
@@ -90,16 +90,17 @@ for epoch in range(args.train_epochs):
 
         optimizer.zero_grad()
         pred = model(input, input_mark, output_mark)
-        loss = torch.sqrt(criteria(pred, output))
+        loss = criteria(pred, output)
         mask = 1. - info['mask'].unsqueeze(1).unsqueeze(1)
         coastal = info['coastal'].unsqueeze(1).unsqueeze(1)
         weight = info['weight'].unsqueeze(-1).unsqueeze(-1)
         coastal = coastal + (1. - coastal) * args.beta
 
         # loss = ((weight * loss) * mask).mean()
-        loss = ((weight * (coastal * loss)) * mask).mean()
+        # loss = ((weight * (coastal * loss)) * mask).mean()
+        loss = torch.mean(torch.sqrt(((weight * (coastal * loss)) * mask).mean([1,2,3,4])))
         accelerator.backward(loss)
-        accelerator.clip_grad_norm_(model.parameters(), 1)
+        # accelerator.clip_grad_norm_(model.parameters(), 1)
         optimizer.step()
         lr_scheduler.step()
         train_loss.update(loss.detach().cpu().item())

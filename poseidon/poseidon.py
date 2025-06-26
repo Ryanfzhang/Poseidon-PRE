@@ -132,6 +132,8 @@ class poseidon_pre(nn.Module):
         self.decoder = Decoder(img_size=in_img_size, patch_size=patch_size, embed_dim=hidden_size)
 
         self.initialize_weights()
+        self.encoder.requires_grad_=False
+        self.decoder.requires_grad_=False
 
     def pad(self, x):
         padded_x = torch.nn.functional.pad(x, (self.pad_size_w, 0, self.pad_size_h, 0), 'constant', 0)
@@ -145,15 +147,6 @@ class poseidon_pre(nn.Module):
                 if module.bias is not None:
                     nn.init.constant_(module.bias, 0)
         self.apply(_basic_init)
-        # Zero-out adaLN modulation layers in blocks:
-        for block in self.blocks:
-            nn.init.constant_(block.adaLN_modulation[-1].weight, 0)
-            nn.init.constant_(block.adaLN_modulation[-1].bias, 0)
-
-        nn.init.constant_(self.decoder.head.adaLN_modulation[-1].weight, 0)
-        nn.init.constant_(self.decoder.head.adaLN_modulation[-1].bias, 0)
-        nn.init.constant_(self.decoder.head.linear.weight, 0)
-        nn.init.constant_(self.decoder.head.linear.bias, 0)
     
     def get_learnable_parameters(self):
         return self.blocks.parameters()
