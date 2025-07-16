@@ -174,7 +174,7 @@ class poseidon_pre(nn.Module):
         return x
 
 if __name__=="__main__":
-    model = poseidon_recon(in_img_size=(400, 441), patch_size=8).to("cuda")
+    model = poseidon_recon(in_img_size=(400, 441), patch_size=16).to("cuda")
     x = torch.randn(1, 19, 30, 400, 441).to("cuda")
     x_mark = torch.Tensor([[11, 30]]).to("cuda")
     y_mark = torch.Tensor([[11, 30]]).to("cuda")

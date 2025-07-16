@@ -24,6 +24,7 @@ class Decoder(nn.Module):
         img_size,
         variables=19,
         levels=30,
+        level_reduction=6,
         patch_size=2,
         embed_dim=1024,
         num_heads=16,
@@ -52,8 +53,11 @@ class Decoder(nn.Module):
             ln_k_q=False,
         )
         
-        self.level_expansion = FourierExpansion(1, self.levels, d=embed_dim)
-        self.head = nn.ModuleList([FinalLayer(embed_dim, patch_size, variables) for i in range(self.levels)])
+        self.variables_expansion = FourierExpansion(1, self.variables, d=embed_dim)
+
+        self.head = nn.ModuleList([FinalLayer(embed_dim, patch_size, levels//level_reduction) for i in range(self.variables)])
+        self.levels = levels
+        self.level_reduction = level_reduction
 
         self.apply(self._init_weights)
     
@@ -65,13 +69,13 @@ class Decoder(nn.Module):
         elif isinstance(m, nn.LayerNorm):
             nn.init.constant_(m.bias, 0)
             nn.init.constant_(m.weight, 1.0)
-        for i in range(self.levels):
+        for i in range(self.variables):
             nn.init.constant_(self.head[i].adaLN_modulation[-1].weight, 0)
             nn.init.constant_(self.head[i].adaLN_modulation[-1].bias, 0)
             nn.init.constant_(self.head[i].linear.weight, 0)
             nn.init.constant_(self.head[i].linear.bias, 0)
 
-    def deaggregate_levels(
+    def deaggregate_variables(
         self,
         x: torch.Tensor,
     ) -> torch.Tensor:
@@ -85,10 +89,10 @@ class Decoder(nn.Module):
         Returns:
             torch.Tensor: Deaggregate output of shape `(B, L, C, D)`.
         """
-        B, _, L, _ = x.shape
+        B, C, L, D = x.shape
 
-        levels = torch.arange(1, self.levels+1, device=x.device).float()
-        latents = self.level_expansion(levels)
+        variables = torch.arange(1, self.variables+1, device=x.device).float()
+        latents = self.variables_expansion(variables)
         latents = latents.unsqueeze(0).expand(B*L, -1, -1)  # (C_A, D) to (B, C_A, L, D)
 
         x = torch.einsum("bcld->blcd", x)
@@ -105,7 +109,7 @@ class Decoder(nn.Module):
         return imgs: (B, V, H, W)
         """
         p = self.patch_size
-        v = self.variables 
+        v = self.levels//self.level_reduction
         h = self.img_size[0] // p if h is None else h // p
         w = self.img_size[1] // p if w is None else w // p
         assert h * w == x.shape[1],print(x.shape, h, w)
@@ -129,16 +133,18 @@ class Decoder(nn.Module):
             :class:`aurora.batch.Batch`: Prediction for `batch`.
         """
         B, L, C, D = x.shape
-        x = self.deaggregate_levels(x)  
+        x = self.deaggregate_variables(x)  
 
         x_list = []
-        for i in range(self.levels):
+        for i in range(self.variables):
             x_list.append(self.head[i](x[:,i], y_time_emb))
 
         x = torch.stack(x_list, dim=1)
         x = rearrange(x, "B L C D-> (B L) C D")
+        print(x.shape)
         x = self.unpatchify(x)
-        x = rearrange(x, "(B L) C H W-> B C L H W", L=self.levels)
+        x = rearrange(x, "(B L) C H W-> B C L H W", L=self.variables)
+        x = F.interpolate(x, size=(self.levels, self.img_size[0], self.img_size[1]), mode="trilinear")
 
         return x
 

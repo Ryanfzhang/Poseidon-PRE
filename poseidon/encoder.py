@@ -19,8 +19,9 @@ class Encoder(nn.Module):
         self,
         img_size,
         variables=19,
-        latent_levels=8,
+        latent_levels=5,
         levels=30,
+        level_reduction=6,
         patch_size=2,
         embed_dim=1024,
         num_heads=16,
@@ -31,8 +32,9 @@ class Encoder(nn.Module):
         self.patch_size = patch_size
         self.variables = variables
 
-        self.token_embeds = nn.ModuleList([PatchEmbed(None, patch_size, variables, embed_dim) for i in range(levels)])
+        self.token_embeds = nn.ModuleList([PatchEmbed(None, patch_size, levels//level_reduction, embed_dim) for i in range(variables)])
         self.levels = levels
+        self.level_reduction = level_reduction
         self.latent_levels = latent_levels
         self.num_patches = (img_size[0] // patch_size) * (img_size[1] // patch_size)
 
@@ -66,7 +68,7 @@ class Encoder(nn.Module):
         self.pos_embed.data.copy_(torch.from_numpy(pos_embed).float().unsqueeze(0))
 
         # token embedding layer
-        for i in range(self.levels):
+        for i in range(self.variables):
             w = self.token_embeds[i].proj.weight.data
             trunc_normal_(w.view([w.shape[0], -1]), std=0.02)
 
@@ -110,10 +112,11 @@ class Encoder(nn.Module):
     def forward(self, x: torch.Tensor):
 
         B, C, L, H, W = x.shape
-        x = rearrange(x, "B C L H W -> B L C H W")
+        x = rearrange(x, "B C (L D) H W -> B C L D H W", D=self.level_reduction)
+        x = x.mean(3)
 
         embed_variable_list = []
-        for i in range(self.levels):
+        for i in range(self.variables):
             embed_variable_list.append(self.token_embeds[i](x[:,i]))
 
         embed_variable = torch.stack(embed_variable_list, dim=1)
