@@ -140,10 +140,9 @@ class Decoder(nn.Module):
             x_list.append(self.head[i](x[:,i], y_time_emb))
 
         x = torch.stack(x_list, dim=1)
-        x = rearrange(x, "B L C D-> (B L) C D")
-        print(x.shape)
+        x = rearrange(x, "B C L D-> (B C) L D")
         x = self.unpatchify(x)
-        x = rearrange(x, "(B L) C H W-> B C L H W", L=self.variables)
+        x = rearrange(x, "(B C) L H W-> B C L H W", C=self.variables)
         x = F.interpolate(x, size=(self.levels, self.img_size[0], self.img_size[1]), mode="trilinear")
 
         return x
